@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Web UI rebuilt with Vite, React, Tailwind CSS and shadcn/ui in a black-and-white CRM style with a light/dark toggle; all colours live in `ui/src/styles/brand.css` (see `ui/BRANDING.md`)
+- Search box: the suggestions dropdown is gone; results already appear live under the box as you type, so it only repeated them
 - Web UI now calls the API through a relative `/api` path; the nginx container proxies it to the API using the `API_URL` env var (previously hardcoded to `localhost:3000`)
 - Saving a page from the UI no longer sends the frontmatter block as page content
 - Visual editor: pages open in a WYSIWYG editor (Tiptap) with a formatting toolbar that reads and writes Markdown; `[[page]]` shortcodes stay as text and are highlighted, and typing `[[` opens the same page picker as the Markdown editor. The previous source editor remains available as "Markdown" mode (source + live preview), plus a read-only "Preview" mode. The frontmatter block is no longer shown in the editor
