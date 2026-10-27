@@ -157,7 +157,7 @@ export async function searchPages(
     return [];
   }
 
-  const filter = options.category ? `category = ${options.category}` : undefined;
+  const filter = options.category ? `category = ${JSON.stringify(options.category)}` : undefined;
 
   try {
     const results = await index.search(query, {

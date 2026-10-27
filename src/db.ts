@@ -293,7 +293,7 @@ export function listPages(categoryId?: string): PageWithCategory[] {
   `).all() as unknown as PageWithCategory[];
 }
 
-export function searchPages(query: string): PageWithCategory[] {
+export function searchPages(query: string, categoryId?: string): PageWithCategory[] {
   const database = getDb();
   // Quote each term so user input is never parsed as FTS5 query syntax
   // (operators like ":", "*", "(" or NOT would otherwise throw an SQL error)
@@ -309,9 +309,10 @@ export function searchPages(query: string): PageWithCategory[] {
     JOIN pages p ON p.rowid = ps.rowid
     JOIN categories c ON p.category_id = c.id
     WHERE pages_search MATCH ?
+      AND (? IS NULL OR p.category_id = ?)
     ORDER BY rank
     LIMIT 20
-  `).all(safeQuery) as unknown as PageWithCategory[];
+  `).all(safeQuery, categoryId ?? null, categoryId ?? null) as unknown as PageWithCategory[];
 }
 
 // ==================== LINK OPERATIONS ====================

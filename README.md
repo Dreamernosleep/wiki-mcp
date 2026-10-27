@@ -148,7 +148,7 @@ MCP_TRANSPORT=stdio node dist/server.js
 | `update_page` | Update a page's content |
 | `delete_page` | Delete a page |
 | `list_pages` | List all pages (filter by category) |
-| `search_pages` | Smart search (typo-tolerant, ranked) |
+| `search_pages` | Smart search (typo-tolerant, ranked), optionally inside one category |
 | `get_linked_pages` | Get pages linked to/from a page |
 | `get_graph` | Get the full link graph |
 | `sync_files` | Force sync from markdown files |
@@ -171,7 +171,7 @@ MCP_TRANSPORT=stdio node dist/server.js
 | `POST` | `/api/pages` | Create a page (`content`, or `template` id) |
 | `PUT` | `/api/pages/:category/:slug` | Update a page |
 | `DELETE` | `/api/pages/:category/:slug` | Delete a page |
-| `GET` | `/api/search?q=...` | Search pages |
+| `GET` | `/api/search?q=...` | Search pages (optional `&category=companies` to search one folder) |
 | `GET` | `/api/search/suggest?q=...` | Autocomplete suggestions |
 | `GET` | `/api/graph` | Get link graph |
 | `GET` | `/api/pages/:cat/:slug/links` | Get linked pages |

@@ -108,9 +108,10 @@ export const api = {
     request<LinkedPages>(`/pages/${enc(category)}/${enc(slug)}/links`),
 
   // Search
-  search: async (q: string, limit = 10): Promise<{ results: SearchResult[]; engine: SearchEngine }> => {
+  /** Full-text search; `category` limits it to one folder */
+  search: async (q: string, limit = 10, category?: string): Promise<{ results: SearchResult[]; engine: SearchEngine }> => {
     const data = await request<{ results: Array<Partial<SearchResult> & Partial<Page>>; engine: SearchEngine }>(
-      `/search?q=${enc(q)}&limit=${limit}`
+      `/search?q=${enc(q)}&limit=${limit}${category ? `&category=${enc(category)}` : ''}`
     );
     // The SQLite fallback returns raw page rows (category_id, no path); normalise
     // so callers always get the Meilisearch shape.

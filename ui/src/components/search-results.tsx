@@ -1,6 +1,6 @@
 import { FileText } from 'lucide-react';
 
-import type { SearchEngine, SearchResult } from '@/lib/api';
+import type { Category, SearchEngine, SearchResult } from '@/lib/api';
 import { sanitizeHighlight } from '@/lib/markdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,18 +9,21 @@ import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from '@/componen
 interface Props {
   results: SearchResult[];
   engine: SearchEngine;
+  /** The folder the search was limited to, if any */
+  category?: Category | null;
   onOpenPage: (category: string, slug: string) => void;
   onClear: () => void;
 }
 
 const SNIPPET_LENGTH = 150;
 
-export function SearchResults({ results, engine, onOpenPage, onClear }: Props) {
+export function SearchResults({ results, engine, category, onOpenPage, onClear }: Props) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel className="justify-between pr-0">
         <span className="flex items-center gap-2">
           {results.length} {results.length === 1 ? 'result' : 'results'}
+          {category && <span className="font-normal normal-case text-muted-foreground">in {category.name}</span>}
           <Badge variant="outline" className="h-4 px-1 font-mono text-[10px] font-normal uppercase">
             {engine}
           </Badge>
@@ -31,7 +34,9 @@ export function SearchResults({ results, engine, onOpenPage, onClear }: Props) {
       </SidebarGroupLabel>
       <SidebarGroupContent>
         {results.length === 0 ? (
-          <p className="px-2 py-6 text-center text-xs text-muted-foreground">No results found</p>
+          <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+            {category ? `No results in ${category.name}` : 'No results found'}
+          </p>
         ) : (
           <ul className="flex flex-col gap-1">
             {results.map((r) => {

@@ -199,12 +199,12 @@ const tools = [
   },
   {
     name: 'search_pages',
-    description: 'Smart full-text search across all pages with typo tolerance. Returns ranked results with highlighted snippets.',
+    description: 'Smart full-text search with typo tolerance, across all pages or inside one category (folder). Returns ranked results with highlighted snippets.',
     inputSchema: {
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Search query' },
-        category: { type: 'string', description: 'Filter by category (optional)' },
+        category: { type: 'string', description: 'Only search pages in this category (folder). Omit to search the whole wiki.' },
         limit: { type: 'number', description: 'Max results (default: 20)' },
       },
       required: ['query'],
@@ -452,6 +452,10 @@ async function handleToolCall(name: string, args: any): Promise<any> {
 
     case 'search_pages': {
       const { query, category, limit } = args;
+      if (category && !db.getCategory(category)) {
+        return { content: [{ type: 'text', text: `❌ Category "${category}" does not exist. Use list_categories.` }], isError: true };
+      }
+      const scope = category ? ` in \`${category}/\`` : '';
       // Try Meilisearch first
       if (search.isSearchAvailable()) {
         const results = await search.searchPages(query, { category, limit, highlight: true });
@@ -465,18 +469,18 @@ async function handleToolCall(name: string, args: any): Promise<any> {
           return {
             content: [{
               type: 'text',
-              text: `🔍 **Search results** for "${query}" (${results.length})\n\n${summary.join('\n\n') || '(no results)'}`,
+              text: `🔍 **Search results** for "${query}"${scope} (${results.length})\n\n${summary.join('\n\n') || '(no results)'}`,
             }],
           };
         }
       }
       // Fallback to SQLite FTS5
-      const results = db.searchPages(query);
+      const results = db.searchPages(query, category);
       const summary = results.map((p) => `- \`${p.category_id}/${p.slug}\` — **${p.title}**`);
       return {
         content: [{
           type: 'text',
-          text: `🔍 **Search results** for "${query}" (${results.length}) [SQLite]\n\n${summary.join('\n') || '(no results)'}`,
+          text: `🔍 **Search results** for "${query}"${scope} (${results.length}) [SQLite]\n\n${summary.join('\n') || '(no results)'}`,
         }],
       };
     }
@@ -844,7 +848,7 @@ function createHttpServer() {
     }
 
     // Fallback to SQLite
-    const results = db.searchPages(query);
+    const results = db.searchPages(query, category);
     res.json({ results, engine: 'sqlite' });
   }));
 

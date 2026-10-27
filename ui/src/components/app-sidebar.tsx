@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, FolderPlus, Plus } from 'lucide-react';
 
-import type { Category, Page, SearchEngine, SearchResult, Template } from '@/lib/api';
+import type { Category, Page, Template } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Sidebar,
@@ -10,7 +10,7 @@ import {
   SidebarHeader,
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { SearchBox } from '@/components/search-box';
+import { SearchBox, type SearchData } from '@/components/search-box';
 import { SearchResults } from '@/components/search-results';
 import { PageTree } from '@/components/page-tree';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -49,7 +49,7 @@ export function AppSidebar({
   onRenameCategory,
   onDeleteCategory,
 }: Props) {
-  const [search, setSearch] = useState<{ results: SearchResult[]; engine: SearchEngine } | null>(null);
+  const [search, setSearch] = useState<SearchData | null>(null);
 
   const open = (category: string, slug: string) => {
     setSearch(null);
@@ -83,12 +83,18 @@ export function AppSidebar({
             Ctrl N
           </kbd>
         </Button>
-        <SearchBox onResults={setSearch} onClear={() => setSearch(null)} />
+        <SearchBox categories={categories} onResults={setSearch} onClear={() => setSearch(null)} />
       </SidebarHeader>
 
       <SidebarContent>
         {search ? (
-          <SearchResults results={search.results} engine={search.engine} onOpenPage={open} onClear={() => setSearch(null)} />
+          <SearchResults
+            results={search.results}
+            engine={search.engine}
+            category={search.category}
+            onOpenPage={open}
+            onClear={() => setSearch(null)}
+          />
         ) : (
           <PageTree
             categories={categories}
