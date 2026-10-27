@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Compose setup
 - Dual MCP transport (stdio + Streamable HTTP)
 
+### Added
+- `npm run setup`: guided installer that checks Node and Docker, creates `.env`, generates the Meilisearch password, asks for ports, starts the stack and prints the URLs and MCP config (`--yes` for non-interactive, `--no-start` to configure only)
+
 ### Changed
 - Web UI rebuilt with Vite, React, Tailwind CSS and shadcn/ui in a black-and-white CRM style with a light/dark toggle; all colours live in `ui/src/styles/brand.css` (see `ui/BRANDING.md`)
 - Web UI now calls the API through a relative `/api` path; the nginx container proxies it to the API using the `API_URL` env var (previously hardcoded to `localhost:3000`)

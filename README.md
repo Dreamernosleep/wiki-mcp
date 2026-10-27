@@ -49,21 +49,33 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 
 ## 🚀 Quick Start
 
-### Option 1: Docker (Recommended)
+### Option 1: Guided setup (Recommended)
 
 ```bash
-# Clone the repository
 git clone https://github.com/Dreamernosleep/wiki-mcp.git
 cd wiki-mcp
+npm run setup
+```
 
-# Copy environment file
-cp .env.example .env
+The setup script checks for Node 22+ and Docker, creates your `.env`, generates a search-engine
+password, asks for the ports (defaults: UI on 80, API on 3000), starts everything with Docker
+Compose, and prints the URLs plus an MCP config block to paste into your AI tool. Re-running it is
+safe: existing `.env` values are kept. Use `npm run setup -- --yes` for a non-interactive install.
 
-# Start everything (Meilisearch + API + Web UI)
-docker-compose up -d
+### Option 1b: Plain Docker Compose
+
+```bash
+git clone https://github.com/Dreamernosleep/wiki-mcp.git
+cd wiki-mcp
+cp .env.example .env     # optional: edit ports and MEILISEARCH_KEY
+docker compose up -d     # Meilisearch + API + Web UI
 
 # Open http://localhost in your browser!
 ```
+
+> **About Meilisearch:** it is an open-source search engine that runs as a local container here.
+> No account, no external service, no cost. `MEILISEARCH_KEY` is simply a password that locks your
+> own instance. If the container is unavailable the wiki falls back to SQLite full-text search.
 
 ### Option 2: Local Development
 

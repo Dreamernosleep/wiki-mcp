@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx src/server.ts",
