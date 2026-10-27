@@ -1,7 +1,7 @@
 # Wiki MCP 🚀
 
-[![CI](https://github.com/your-org/wiki-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/wiki-mcp/actions/workflows/ci.yml)
-[![Docker](https://img.shields.io/docker/v/your-org/wiki-mcp?label=docker)](https://hub.docker.com/r/your-org/wiki-mcp)
+[![CI](https://github.com/Dreamernosleep/wiki-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/Dreamernosleep/wiki-mcp/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Dreamernosleep/wiki-mcp?label=release)](https://github.com/Dreamernosleep/wiki-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
@@ -53,7 +53,7 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/wiki-mcp.git
+git clone https://github.com/Dreamernosleep/wiki-mcp.git
 cd wiki-mcp
 
 # Copy environment file
@@ -280,5 +280,5 @@ This project is licensed under the [MIT License](LICENSE) — see the LICENSE fi
 </p>
 
 <p align="center">
-  <a href="https://github.com/your-org/wiki-mcp">⭐ Star us on GitHub</a>
+  <a href="https://github.com/Dreamernosleep/wiki-mcp">⭐ Star us on GitHub</a>
 </p>
