@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Page templates: markdown files in `content/_templates/` with `name`, `description`, optional `category` and `default` frontmatter and `{{title}}` / `{{category}}` / `{{date}}` placeholders. Four starters are written on first start (Customer profile, Procedure, Meeting notes, Decision record). REST: `/api/templates` CRUD and `POST /api/pages` accepts a `template` id. MCP: `list_templates`, `get_template`, `create_template`, `update_template`, `delete_template`, and `create_page` accepts `template` (falls back to the category default when `content` is omitted). Web UI: Templates section in the sidebar (open, edit, save and delete templates like pages, plus a New template button), Template picker in the New page dialog (the category's default is preselected) and a "Save as template" action on any open page
-- `customers` category seeded on install (alongside finance, operations, service)
+- `customers` category seeded on install (alongside finance, operations, service). Starter categories are written on first run only: deleting one no longer brings it back on restart, and category folders are created from the database rather than a hard-coded list
+- `content/` is gitignored: pages and templates are user data (remove the line in `.gitignore` to version your wiki in the repo)
 - `npm run setup`: guided installer that checks Node and Docker, creates `.env`, generates the Meilisearch password, asks for ports, starts the stack and prints the URLs and MCP config (`--yes` for non-interactive, `--no-start` to configure only)
 
 ### Changed

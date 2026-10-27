@@ -124,7 +124,14 @@ function createSchema(database: DatabaseSync): void {
   `);
 }
 
+/**
+ * Starter categories, written on first run only. Once the table has rows the
+ * user owns the structure: deleting a starter category must not bring it back.
+ */
 function seedCategories(database: DatabaseSync): void {
+  const { count } = database.prepare('SELECT COUNT(*) AS count FROM categories').get() as { count: number };
+  if (count > 0) return;
+
   const stmt = database.prepare(`
     INSERT OR IGNORE INTO categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)
   `);

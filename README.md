@@ -204,7 +204,7 @@ wiki-mcp/
 │   ├── BRANDING.md         # How to change colours / name
 │   ├── Dockerfile          # Builds the bundle, serves it with nginx
 │   └── nginx.conf.template # Serves the app and proxies /api to the API
-├── content/                # Your wiki (markdown files)
+├── content/                # Your wiki (markdown files; gitignored, created on first start)
 │   ├── _templates/         # Page templates (see below)
 │   ├── finance/
 │   ├── operations/

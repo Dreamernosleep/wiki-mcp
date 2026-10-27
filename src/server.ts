@@ -33,9 +33,6 @@ const DATABASE_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'dat
 // Ensure directories exist
 fs.mkdirSync(CONTENT_PATH, { recursive: true });
 fs.mkdirSync(path.dirname(DATABASE_PATH), { recursive: true });
-for (const cat of ['finance', 'operations', 'service', 'customers']) {
-  fs.mkdirSync(path.join(CONTENT_PATH, cat), { recursive: true });
-}
 templates.seedDefaultTemplates(); // content/_templates on first run only
 
 /**
@@ -62,6 +59,11 @@ function resolvePageContent(
 // Initialize database
 db.initDatabase(DATABASE_PATH);
 console.error('✅ Database initialized');
+
+// Every category (seeded or user-created) gets its folder under content/
+for (const cat of db.listCategories()) {
+  files.ensureCategoryDir(cat.id);
+}
 
 // Connect search, sync files, then start watching — in that order.
 // Meilisearch must be ready before the sync or nothing gets indexed.

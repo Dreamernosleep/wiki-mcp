@@ -17,9 +17,8 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 
-# Content (user data - uncomment if you want to commit sample content)
-# content/**/*.md
-# !content/**/.gitkeep
+# Content: your wiki (pages and templates) is user data. Remove this line to version it in this repo.
+content/
 
 # Test
 .test/
