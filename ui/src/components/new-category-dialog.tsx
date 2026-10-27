@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 
+import { SLUG_PATTERN, SLUG_RULE, slugify } from '@/lib/slug';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -17,14 +18,6 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreate: (input: { id: string; name: string; description: string }) => Promise<void>;
-}
-
-/** "Product Team" -> "product-team" (same rule as the original UI). */
-export function toCategoryId(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
 }
 
 export function NewCategoryDialog({ open, onOpenChange, onCreate }: Props) {
@@ -45,7 +38,7 @@ export function NewCategoryDialog({ open, onOpenChange, onCreate }: Props) {
 
   const onNameChange = (value: string) => {
     setName(value);
-    if (!idEdited) setId(toCategoryId(value));
+    if (!idEdited) setId(slugify(value));
   };
 
   const submit = async (e: FormEvent) => {
@@ -92,8 +85,8 @@ export function NewCategoryDialog({ open, onOpenChange, onCreate }: Props) {
                 setId(e.target.value);
               }}
               placeholder="engineering"
-              pattern="[a-z0-9-]+"
-              title="Lowercase letters, numbers, and hyphens only"
+              pattern={SLUG_PATTERN}
+              title={SLUG_RULE}
               required
               className="font-mono"
             />

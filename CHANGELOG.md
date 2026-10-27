@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web UI rebuilt with Vite, React, Tailwind CSS and shadcn/ui in a black-and-white CRM style with a light/dark toggle; all colours live in `ui/src/styles/brand.css` (see `ui/BRANDING.md`)
 - Web UI now calls the API through a relative `/api` path; the nginx container proxies it to the API using the `API_URL` env var (previously hardcoded to `localhost:3000`)
 - Saving a page from the UI no longer sends the frontmatter block as page content
+- New page dialog: the slug (file name) is generated from the title and shown read-only; an Edit button reveals the input for custom slugs
 
 ### Fixed
 - File sync no longer fails with `FOREIGN KEY constraint failed` on a fresh database when pages link to each other; pages are now inserted with their frontmatter ID directly, and one bad file no longer aborts the whole sync

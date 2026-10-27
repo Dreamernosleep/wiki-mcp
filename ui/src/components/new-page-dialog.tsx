@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 import type { Category } from '@/lib/api';
+import { SLUG_PATTERN, SLUG_RULE, slugify } from '@/lib/slug';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,12 +25,12 @@ interface Props {
   onCreate: (input: { category: string; slug: string; title: string; content: string }) => Promise<void>;
 }
 
-export const SLUG_PATTERN = '[a-z0-9-]+';
-
 export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Props) {
   const [category, setCategory] = useState('');
-  const [slug, setSlug] = useState('');
   const [title, setTitle] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugEdited, setSlugEdited] = useState(false); // user typed a custom slug
+  const [slugEditing, setSlugEditing] = useState(false); // slug input is visible
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,15 +38,33 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
   useEffect(() => {
     if (open) {
       setCategory(categories[0]?.id ?? '');
-      setSlug('');
       setTitle('');
+      setSlug('');
+      setSlugEdited(false);
+      setSlugEditing(false);
       setContent('');
     }
   }, [open, categories]);
 
+  const onTitleChange = (value: string) => {
+    setTitle(value);
+    if (!slugEdited) setSlug(slugify(value));
+  };
+
+  const onSlugChange = (value: string) => {
+    setSlugEdited(true);
+    setSlug(value);
+  };
+
+  const resetSlug = () => {
+    setSlugEdited(false);
+    setSlug(slugify(title));
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!category) return toast.error('Create a category first');
+    if (!slug) return toast.error('The title must contain at least one letter or number');
     setSubmitting(true);
     try {
       await onCreate({ category, slug, title, content });
@@ -82,30 +102,60 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="new-page-slug">Slug</Label>
-            <Input
-              id="new-page-slug"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              placeholder="q4-budget"
-              pattern={SLUG_PATTERN}
-              title="Lowercase letters, numbers, and hyphens only"
-              autoFocus
-              required
-              className="font-mono"
-            />
-            <p className="text-[11px] text-muted-foreground">Lowercase letters, numbers, and hyphens. Becomes the file name.</p>
-          </div>
-
-          <div className="grid gap-1.5">
             <Label htmlFor="new-page-title">Title</Label>
             <Input
               id="new-page-title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => onTitleChange(e.target.value)}
               placeholder="Q4 Budget Planning"
+              autoFocus
               required
             />
+          </div>
+
+          {/* Slug: derived from the title, shown read-only until the user chooses to edit it */}
+          <div className="grid gap-1.5">
+            <Label htmlFor="new-page-slug">File name</Label>
+            {slugEditing ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="new-page-slug"
+                    value={slug}
+                    onChange={(e) => onSlugChange(e.target.value)}
+                    placeholder="q4-budget-planning"
+                    pattern={SLUG_PATTERN}
+                    title={SLUG_RULE}
+                    autoFocus
+                    required
+                    className="font-mono"
+                  />
+                  {slugEdited && (
+                    <Button type="button" variant="ghost" size="sm" className="shrink-0 text-xs" onClick={resetSlug}>
+                      Reset
+                    </Button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">{SLUG_RULE}.</p>
+              </>
+            ) : (
+              <div className="flex h-9 items-center justify-between gap-2 rounded-md border bg-muted/40 px-3">
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                  {category || 'category'}/<span className="text-foreground">{slug || 'page-title'}</span>.md
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1 px-2 text-xs"
+                  onClick={() => setSlugEditing(true)}
+                  aria-label="Edit file name"
+                >
+                  <Pencil className="size-3" />
+                  Edit
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="grid gap-1.5">
