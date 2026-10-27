@@ -1,0 +1,90 @@
+services:
+  # ============================================
+  # Meilisearch - Smart search engine
+  # ============================================
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: wiki-meilisearch
+    restart: unless-stopped
+    expose:
+      - "7700"
+    volumes:
+      - meilisearch_data:/meili_data
+    environment:
+      - MEILI_MASTER_KEY=${MEILISEARCH_KEY:-change_me_in_production}
+      - MEILI_ENV=${MEILI_ENV:-production}
+      - MEILI_NO_ANALYTICS=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - wiki-internal
+
+  # ============================================
+  # Wiki API - MCP server + REST API
+  # ============================================
+  wiki-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wiki-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3000}:3000"
+    volumes:
+      # Mount user's wiki content (persistent)
+      - ./content:/app/content
+      # Mount database (persistent)
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATABASE_PATH=/app/data/wiki.db
+      - CONTENT_PATH=/app/content
+      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_KEY=${MEILISEARCH_KEY:-change_me_in_production}
+      - MCP_TRANSPORT=http
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - wiki-internal
+      - wiki-external
+
+  # ============================================
+  # Web UI - Human-friendly interface
+  # ============================================
+  web-ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: wiki-ui
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-80}:80"
+    environment:
+      - API_URL=http://wiki-api:3000
+    depends_on:
+      - wiki-api
+    networks:
+      - wiki-external
+
+volumes:
+  meilisearch_data:
+    driver: local
+
+networks:
+  wiki-internal:
+    driver: bridge
+    internal: true
+  wiki-external:
+    driver: bridge

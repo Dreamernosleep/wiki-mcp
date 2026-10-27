@@ -1,0 +1,267 @@
+# Wiki MCP 🚀
+
+[![CI](https://github.com/your-org/wiki-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/wiki-mcp/actions/workflows/ci.yml)
+[![Docker](https://img.shields.io/docker/v/your-org/wiki-mcp?label=docker)](https://hub.docker.com/r/your-org/wiki-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
+
+> **An open-source company knowledge wiki with AI superpowers.**
+> Markdown files + Smart search + MCP server + Web UI + Docker
+
+Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markdown files** with the power of **AI agents** through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Your wiki is just a folder of `.md` files — git-friendly, portable, and yours forever.
+
+## ✨ Features
+
+| Feature | Description |
+|---------|-------------|
+| 📁 **Markdown Files** | Your wiki is just `.md` files with YAML frontmatter — edit in any editor! |
+| 🤖 **MCP Server** | AI agents (Claude, pi, Cursor, etc.) can read, write, and search your wiki |
+| 🔍 **Smart Search** | Typo-tolerant search with [Meilisearch](https://www.meilisearch.com/) (fallback: SQLite FTS5) |
+| 🌐 **Web UI** | Beautiful dark-themed editor with live preview, split view, and autocomplete |
+| 🔗 **Wiki Links** | `[[page-slug]]` or `[[category/page-slug]]` with autocomplete while typing |
+| 📂 **Dynamic Categories** | Create custom folders (categories) on the fly — not just finance/ops/service |
+| 🐳 **Docker Ready** | One command to run everything: `docker-compose up -d` |
+| 👀 **File Watcher** | Edit files in VS Code/Obsidian — changes auto-sync to search index |
+| 📊 **Graph View** | See how pages connect with a full link graph |
+| 🔄 **Dual Transport** | MCP over stdio (local) or Streamable HTTP (Docker/remote) |
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     docker-compose up                    │
+├─────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
+│  │ Meilisearch │  │  Wiki API   │  │    Web UI       │  │
+│  │  (search)   │◄─│  (MCP+REST) │◄─│   (browser)     │  │
+│  │  :7700      │  │  :3000      │  │   :80           │  │
+│  └─────────────┘  └──────┬──────┘  └─────────────────┘  │
+│                          │                               │
+│  ┌───────────────────────┴───────────────────────────┐  │
+│  │  Volumes: content/ (markdown), data/ (SQLite)     │  │
+│  └───────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+         ↑                              ↑
+    🤖 AI Agents (MCP)            👤 Humans (Browser)
+    pi, Claude, Cursor...         View & Edit
+```
+
+## 🚀 Quick Start
+
+### Option 1: Docker (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/your-org/wiki-mcp.git
+cd wiki-mcp
+
+# Copy environment file
+cp .env.example .env
+
+# Start everything (Meilisearch + API + Web UI)
+docker-compose up -d
+
+# Open http://localhost in your browser!
+```
+
+### Option 2: Local Development
+
+```bash
+# Prerequisites: Node.js 22+, Docker (for Meilisearch)
+
+# Install dependencies
+npm install
+
+# Start Meilisearch
+docker run -d -p 7700:7700 getmeili/meilisearch
+
+# Run in development mode
+npm run dev
+```
+
+### Option 3: MCP Only (for AI agents)
+
+```bash
+npm install && npm run build
+
+# Run as MCP server (stdio)
+MCP_TRANSPORT=stdio node dist/server.js
+```
+
+## 🔌 Connect AI Agents
+
+### pi / Claude Desktop (Local)
+
+```json
+{
+  "mcpServers": {
+    "wiki": {
+      "command": "node",
+      "args": ["/path/to/wiki-mcp/dist/server.js"],
+      "env": {
+        "MCP_TRANSPORT": "stdio",
+        "MEILISEARCH_URL": "http://localhost:7700"
+      }
+    }
+  }
+}
+```
+
+### Claude Code / Cursor / Remote Agents (HTTP)
+
+```json
+{
+  "mcpServers": {
+    "wiki": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+## 🛠️ MCP Tools (11)
+
+| Tool | Description |
+|------|-------------|
+| `list_categories` | List all wiki categories |
+| `create_category` | Create a new category (folder) |
+| `create_page` | Create a new page with markdown |
+| `get_page` | Get a page by category/slug |
+| `update_page` | Update a page's content |
+| `delete_page` | Delete a page |
+| `list_pages` | List all pages (filter by category) |
+| `search_pages` | Smart search (typo-tolerant, ranked) |
+| `get_linked_pages` | Get pages linked to/from a page |
+| `get_graph` | Get the full link graph |
+| `sync_files` | Force sync from markdown files |
+
+## 🌐 REST API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/categories` | List categories |
+| `POST` | `/api/categories` | Create category |
+| `DELETE` | `/api/categories/:id` | Delete empty category |
+| `GET` | `/api/pages` | List pages (`?category=finance`) |
+| `GET` | `/api/pages/:category/:slug` | Get a page |
+| `POST` | `/api/pages` | Create a page |
+| `PUT` | `/api/pages/:category/:slug` | Update a page |
+| `DELETE` | `/api/pages/:category/:slug` | Delete a page |
+| `GET` | `/api/search?q=...` | Search pages |
+| `GET` | `/api/search/suggest?q=...` | Autocomplete suggestions |
+| `GET` | `/api/graph` | Get link graph |
+| `GET` | `/api/pages/:cat/:slug/links` | Get linked pages |
+| `POST` | `/api/sync` | Force file sync |
+| `GET` | `/api/raw/:category/:slug` | Get raw markdown |
+| `GET` | `/health` | Health check |
+
+## 📁 Project Structure
+
+```
+wiki-mcp/
+├── .github/                # GitHub Actions, issue templates
+├── src/
+│   ├── server.ts           # MCP + REST API server
+│   ├── db.ts               # SQLite (graph, metadata)
+│   ├── files.ts            # Markdown file I/O
+│   ├── search.ts           # Meilisearch client
+│   ├── watcher.ts          # File watcher (auto-sync)
+│   └── sync.ts             # Manual sync script
+├── ui/                     # Web UI (static files)
+│   ├── index.html
+│   ├── app.js              # Full editor logic
+│   ├── style.css           # Dark theme
+│   └── marked.min.js       # Bundled libraries
+├── content/                # Your wiki (markdown files)
+│   ├── finance/
+│   ├── operations/
+│   ├── service/
+│   └── clients/            # Custom categories!
+├── data/                   # SQLite database
+├── docker-compose.yml      # One-command setup
+├── Dockerfile              # Wiki API container
+└── README.md
+```
+
+## 📝 Markdown Format
+
+Pages are stored as markdown files with YAML frontmatter:
+
+```markdown
+---
+id: abc123-uuid
+category: finance
+slug: q4-budget
+title: Q4 Budget Planning
+created: 2026-10-27
+updated: 2026-10-27
+created_by: agent
+---
+
+# Q4 Budget Planning
+
+The Q4 budget depends on [[operations/procurement]] timelines.
+
+## Key Figures
+- Revenue target: $2.5M
+```
+
+## 🔗 Wiki Links
+
+Link pages with `[[slug]]` or `[[category/slug]]`:
+
+```markdown
+See [[operations/procurement]] for details.
+Or use full path: [[finance/expense-policy]]
+```
+
+## 🧪 Development
+
+```bash
+# Run tests
+npm test
+
+# Test MCP client
+npm run test:mcp
+
+# Manual sync (rebuild DB from files)
+npm run sync
+
+# Docker commands
+npm run docker:build
+npm run docker:up
+npm run docker:down
+npm run docker:logs
+```
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+
+- 🐛 [Report a Bug](.github/ISSUE_TEMPLATE/bug_report.md)
+- 💡 [Request a Feature](.github/ISSUE_TEMPLATE/feature_request.md)
+- 🔒 [Security Policy](SECURITY.md)
+- 📜 [Code of Conduct](CODE_OF_CONDUCT.md)
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE) — see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- [Model Context Protocol](https://modelcontextprotocol.io/) — AI agent integration
+- [Meilisearch](https://www.meilisearch.com/) — Smart search engine
+- [Marked.js](https://marked.js.org/) — Markdown rendering
+- [Chokidar](https://github.com/paulmillr/chokidar) — File watching
+- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) / [node:sqlite](https://nodejs.org/api/sqlite.html) — Database
+
+---
+
+<p align="center">
+  Made with ❤️ for the open source community
+</p>
+
+<p align="center">
+  <a href="https://github.com/your-org/wiki-mcp">⭐ Star us on GitHub</a>
+</p>

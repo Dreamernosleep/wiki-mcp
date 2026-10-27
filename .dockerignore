@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.env
+*.db
+*.db-shm
+*.db-wal
+content
+!content/.gitkeep
+data
+!data/.gitkeep
+.test
+*.log
+npm-debug.log
+.DS_Store
