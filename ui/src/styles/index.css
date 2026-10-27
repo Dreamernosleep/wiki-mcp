@@ -137,6 +137,68 @@
   @apply max-w-full rounded-md border;
 }
 
+/* ---- Visual editor (Tiptap / ProseMirror) ---------------------------------- */
+.prose-editor {
+  caret-color: var(--foreground);
+  min-height: 100%;
+}
+.prose-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+.prose-editor .wiki-link {
+  background: var(--mark);
+  border-radius: 3px;
+  padding: 0 3px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.prose-editor ul[data-type='taskList'] {
+  list-style: none;
+  padding-left: 0.25rem;
+}
+.prose-editor ul[data-type='taskList'] li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.prose-editor ul[data-type='taskList'] li > label {
+  margin-top: 0.3rem;
+}
+.prose-editor ul[data-type='taskList'] li > div {
+  flex: 1;
+}
+.prose-editor ul[data-type='taskList'] li > div > p {
+  margin: 0.25rem 0;
+}
+.prose-editor table {
+  table-layout: fixed;
+}
+.prose-editor td,
+.prose-editor th {
+  position: relative;
+  min-width: 4rem;
+}
+.prose-editor .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  pointer-events: none;
+}
+.prose-editor .ProseMirror-selectednode,
+.prose-editor img.ProseMirror-selectednode,
+.prose-editor hr.ProseMirror-selectednode {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.prose-editor pre {
+  white-space: pre;
+}
+
 /* highlight.js colours in dark mode: keep code readable on dark surfaces */
 .dark .hljs {
   color: #e5e5e5;

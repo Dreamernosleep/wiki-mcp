@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { PageHeader, type ViewMode } from '@/components/page-header';
 import { Editor } from '@/components/editor';
+import { VisualEditor } from '@/components/visual-editor';
 import { Preview } from '@/components/preview';
 import { LinkedPages } from '@/components/linked-pages';
 import { Welcome } from '@/components/welcome';
@@ -18,7 +19,7 @@ export default function App() {
   const [pages, setPages] = useState<Page[]>([]);
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
   const [editorText, setEditorText] = useState('');
-  const [mode, setMode] = useState<ViewMode>('preview');
+  const [mode, setMode] = useState<ViewMode>('visual');
   const [links, setLinks] = useState<LinkedPagesData | null>(null);
   const [newPageOpen, setNewPageOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
@@ -51,8 +52,8 @@ export default function App() {
       try {
         const page = await api.getPage(category, slug);
         setCurrentPage(page);
-        setEditorText(page.raw_markdown || page.content);
-        setMode('preview');
+        // Edit the body only; the server owns the frontmatter block
+        setEditorText(stripFrontmatter(page.raw_markdown || page.content));
         void loadLinks(page);
       } catch (e) {
         toast.error(errorMessage(e));
@@ -72,14 +73,12 @@ export default function App() {
     setSaving(true);
     try {
       const title = extractTitle(editorText, currentPage.title);
-      // The editor shows the raw file including frontmatter; the server owns
-      // the frontmatter, so only the body is sent as content.
       const updated = await api.updatePage(currentPage.category_id, currentPage.slug, {
         title,
-        content: stripFrontmatter(editorText),
+        content: editorText,
       });
       toast.success('Page saved');
-      setCurrentPage({ ...currentPage, ...updated, title, raw_markdown: editorText });
+      setCurrentPage({ ...currentPage, ...updated, title, content: editorText, raw_markdown: null });
       await loadPages();
       void loadLinks(updated);
     } catch (e) {
@@ -139,7 +138,8 @@ export default function App() {
 
   // ---- Render -------------------------------------------------------------
 
-  const dirty = currentPage !== null && editorText !== (currentPage.raw_markdown || currentPage.content);
+  const dirty =
+    currentPage !== null && editorText !== stripFrontmatter(currentPage.raw_markdown || currentPage.content);
 
   return (
     <SidebarProvider style={{ '--sidebar-width': '17rem' } as CSSProperties}>
@@ -166,12 +166,20 @@ export default function App() {
         {currentPage ? (
           <>
             <div className="flex min-h-0 flex-1">
-              {(mode === 'edit' || mode === 'split') && (
-                <div className={mode === 'split' ? 'flex min-w-0 flex-1 border-r' : 'flex min-w-0 flex-1'}>
-                  <Editor value={editorText} onChange={setEditorText} pages={pages} />
-                </div>
+              {mode === 'visual' && (
+                <VisualEditor key={currentPage.id} value={editorText} onChange={setEditorText} />
               )}
-              {(mode === 'preview' || mode === 'split') && (
+              {mode === 'markdown' && (
+                <>
+                  <div className="flex min-w-0 flex-1 border-r">
+                    <Editor value={editorText} onChange={setEditorText} pages={pages} />
+                  </div>
+                  <div className="hidden min-w-0 flex-1 lg:flex">
+                    <Preview markdown={editorText} onOpenPage={openPage} />
+                  </div>
+                </>
+              )}
+              {mode === 'preview' && (
                 <div className="flex min-w-0 flex-1">
                   <Preview markdown={editorText} onOpenPage={openPage} />
                 </div>

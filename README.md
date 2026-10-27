@@ -18,7 +18,7 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 | 📁 **Markdown Files** | Your wiki is just `.md` files with YAML frontmatter — edit in any editor! |
 | 🤖 **MCP Server** | AI agents (Claude, pi, Cursor, etc.) can read, write, and search your wiki |
 | 🔍 **Smart Search** | Typo-tolerant search with [Meilisearch](https://www.meilisearch.com/) (fallback: SQLite FTS5) |
-| 🌐 **Web UI** | Clean black-and-white editor built with React + [shadcn/ui](https://ui.shadcn.com) — live preview, split view, autocomplete, light/dark |
+| 🌐 **Web UI** | Clean black-and-white UI built with React + [shadcn/ui](https://ui.shadcn.com) — visual (WYSIWYG) editor that saves plain Markdown, Markdown source mode with live preview, light/dark |
 | 🔗 **Wiki Links** | `[[page-slug]]` or `[[category/page-slug]]` with autocomplete while typing |
 | 📂 **Dynamic Categories** | Create custom folders (categories) on the fly — not just finance/ops/service |
 | 🐳 **Docker Ready** | One command to run everything: `docker compose up -d` |

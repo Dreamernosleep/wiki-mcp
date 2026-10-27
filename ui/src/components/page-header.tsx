@@ -1,4 +1,4 @@
-import { Columns2, Eye, Pencil, Save, Trash2 } from 'lucide-react';
+import { Code2, Eye, Pencil, Save, Trash2 } from 'lucide-react';
 
 import type { Page } from '@/lib/api';
 import {
@@ -25,7 +25,8 @@ import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-export type ViewMode = 'edit' | 'preview' | 'split';
+/** visual = WYSIWYG, markdown = source + live preview, preview = read-only render */
+export type ViewMode = 'visual' | 'markdown' | 'preview';
 
 interface Props {
   page: Page | null;
@@ -78,17 +79,17 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
             onValueChange={(v) => v && onModeChange(v as ViewMode)}
             aria-label="View mode"
           >
-            <ToggleGroupItem value="edit" aria-label="Edit" className="h-7 gap-1.5 px-2.5 text-xs">
+            <ToggleGroupItem value="visual" aria-label="Visual editor" className="h-7 gap-1.5 px-2.5 text-xs">
               <Pencil className="size-3.5" />
-              <span className="hidden sm:inline">Edit</span>
+              <span className="hidden sm:inline">Visual</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="markdown" aria-label="Markdown source" className="h-7 gap-1.5 px-2.5 text-xs">
+              <Code2 className="size-3.5" />
+              <span className="hidden sm:inline">Markdown</span>
             </ToggleGroupItem>
             <ToggleGroupItem value="preview" aria-label="Preview" className="h-7 gap-1.5 px-2.5 text-xs">
               <Eye className="size-3.5" />
               <span className="hidden sm:inline">Preview</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="split" aria-label="Split" className="h-7 gap-1.5 px-2.5 text-xs">
-              <Columns2 className="size-3.5" />
-              <span className="hidden sm:inline">Split</span>
             </ToggleGroupItem>
           </ToggleGroup>
 
