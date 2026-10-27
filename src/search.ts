@@ -39,7 +39,8 @@ export async function initSearch(): Promise<boolean> {
   const apiKey = process.env.MEILISEARCH_KEY || 'masterKey';
 
   try {
-    client = new MeiliSearch({ host, apiKey });
+    // Bounded timeout so startup never hangs on an unreachable host
+    client = new MeiliSearch({ host, apiKey, timeout: 5000 });
     index = client.index('pages');
 
     // Test connection

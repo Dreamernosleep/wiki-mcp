@@ -176,22 +176,23 @@ export function createPage(
   slug: string,
   title: string,
   content: string,
-  createdBy: string = 'agent'
+  createdBy: string = 'agent',
+  id?: string
 ): Page {
   const database = getDb();
-  const id = crypto.randomUUID();
+  const pageId = id || crypto.randomUUID();
 
   const stmt = database.prepare(`
     INSERT INTO pages (id, category_id, slug, title, content, created_by)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
 
-  stmt.run(id, categoryId, slug, title, content, createdBy);
+  stmt.run(pageId, categoryId, slug, title, content, createdBy);
 
   // Parse and create links from [[wiki-style]] links
   const links = extractWikiLinks(content);
   for (const link of links) {
-    resolveAndCreateLink(id, link);
+    resolveAndCreateLink(pageId, link);
   }
 
   return getPage(categoryId, slug)!;
@@ -270,6 +271,14 @@ export function listPages(categoryId?: string): PageWithCategory[] {
 
 export function searchPages(query: string): PageWithCategory[] {
   const database = getDb();
+  // Quote each term so user input is never parsed as FTS5 query syntax
+  // (operators like ":", "*", "(" or NOT would otherwise throw an SQL error)
+  const safeQuery = query
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((term) => `"${term.replace(/"/g, '""')}"`)
+    .join(' ');
+  if (!safeQuery) return [];
   return database.prepare(`
     SELECT p.*, c.name as category_name
     FROM pages_search ps
@@ -278,7 +287,7 @@ export function searchPages(query: string): PageWithCategory[] {
     WHERE pages_search MATCH ?
     ORDER BY rank
     LIMIT 20
-  `).all(query) as unknown as PageWithCategory[];
+  `).all(safeQuery) as unknown as PageWithCategory[];
 }
 
 // ==================== LINK OPERATIONS ====================

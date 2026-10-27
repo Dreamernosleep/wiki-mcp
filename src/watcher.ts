@@ -2,10 +2,10 @@ import chokidar, { FSWatcher } from 'chokidar';
 import path from 'path';
 import {
   getContentDir,
+  getRelativePath,
   parsePath,
   readPageFile,
   listAllPageFiles,
-  parseAllPages,
 } from './files.js';
 import * as db from './db.js';
 import * as search from './search.js';
@@ -40,16 +40,17 @@ async function syncFileToDb(filePath: string): Promise<void> {
       console.error(`⚠️  ID mismatch for ${category}/${slug}: DB=${existing.id}, File=${frontmatter.id}`);
     }
   } else {
-    // Create new page (use ID from frontmatter if available)
-    const page = db.createPage(category, slug, frontmatter.title, content, frontmatter.created_by || 'user');
-    // Update the ID to match frontmatter if different
-    if (page.id !== frontmatter.id) {
-      const database = db.getDb();
-      database.prepare('UPDATE pages SET id = ? WHERE id = ?').run(frontmatter.id, page.id);
-      // Update links too
-      database.prepare('UPDATE page_links SET source_page_id = ? WHERE source_page_id = ?').run(frontmatter.id, page.id);
-      database.prepare('UPDATE page_links SET target_page_id = ? WHERE target_page_id = ?').run(frontmatter.id, page.id);
-    }
+    // Create new page, keeping the ID from frontmatter when present.
+    // Passing the ID up front avoids an insert-then-rename that would
+    // violate the page_links foreign key once links have been created.
+    db.createPage(
+      category,
+      slug,
+      frontmatter.title || slug,
+      content,
+      frontmatter.created_by || 'user',
+      frontmatter.id
+    );
   }
 
   // Index in Meilisearch
@@ -110,10 +111,14 @@ export async function fullSync(): Promise<{ synced: number; removed: number }> {
     dbPages.map(p => path.join(getContentDir(), p.category_id, `${p.slug}.md`))
   );
 
-  // Sync files to DB
+  // Sync files to DB (one bad file must not abort the whole sync)
   for (const filePath of files) {
-    await syncFileToDb(filePath);
-    synced++;
+    try {
+      await syncFileToDb(filePath);
+      synced++;
+    } catch (error) {
+      console.error(`❌ Failed to sync ${getRelativePath(filePath)}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   // Remove DB pages that no longer have files
@@ -162,23 +167,20 @@ export function startWatcher(): FSWatcher {
     },
   });
 
-  watcher.on('add', async (relativePath) => {
+  // Errors inside these handlers would otherwise be unhandled rejections
+  const safe = (label: string, fn: (filePath: string) => Promise<void>) => async (relativePath: string) => {
     const filePath = path.join(contentDir, relativePath);
-    console.error(`➕ File added: ${relativePath}`);
-    await syncFileToDb(filePath);
-  });
+    console.error(`${label}: ${relativePath}`);
+    try {
+      await fn(filePath);
+    } catch (error) {
+      console.error(`❌ Failed to process ${relativePath}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
 
-  watcher.on('change', async (relativePath) => {
-    const filePath = path.join(contentDir, relativePath);
-    console.error(`📝 File changed: ${relativePath}`);
-    await syncFileToDb(filePath);
-  });
-
-  watcher.on('unlink', async (relativePath) => {
-    const filePath = path.join(contentDir, relativePath);
-    console.error(`🗑️  File deleted: ${relativePath}`);
-    await removeFileFromDb(filePath);
-  });
+  watcher.on('add', safe('➕ File added', syncFileToDb));
+  watcher.on('change', safe('📝 File changed', syncFileToDb));
+  watcher.on('unlink', safe('🗑️  File deleted', removeFileFromDb));
 
   watcher.on('error', (error) => {
     console.error('Watcher error:', error);

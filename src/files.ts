@@ -24,7 +24,13 @@ const CONTENT_DIR = process.env.CONTENT_PATH || path.join(process.cwd(), 'conten
  * Get the file path for a page
  */
 export function getPagePath(category: string, slug: string): string {
-  return path.join(CONTENT_DIR, category, `${slug}.md`);
+  const filePath = path.resolve(CONTENT_DIR, category, `${slug}.md`);
+  // Refuse any path that escapes the content directory (e.g. slug "../../x")
+  const root = path.resolve(CONTENT_DIR) + path.sep;
+  if (!filePath.startsWith(root)) {
+    throw new Error(`Invalid page path: ${category}/${slug}`);
+  }
+  return filePath;
 }
 
 /**

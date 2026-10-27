@@ -28,6 +28,10 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const CONTENT_PATH = process.env.CONTENT_PATH || path.join(process.cwd(), 'content');
 const DATABASE_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'wiki.db');
 
+// Category IDs and page slugs become folder/file names, so they share one strict pattern
+const ID_PATTERN = /^[a-z0-9-]+$/;
+const ID_RULE = 'lowercase letters, numbers, and hyphens only';
+
 // Ensure directories exist
 fs.mkdirSync(CONTENT_PATH, { recursive: true });
 fs.mkdirSync(path.dirname(DATABASE_PATH), { recursive: true });
@@ -41,25 +45,17 @@ for (const cat of ['finance', 'operations', 'service']) {
 db.initDatabase(DATABASE_PATH);
 console.error('✅ Database initialized');
 
-// Initialize Meilisearch (async, non-blocking)
-let meilisearchReady = false;
-search.initSearch().then((ok) => {
-  meilisearchReady = ok;
-});
-
-// Full sync from files on startup (async)
-async function startupSync() {
+// Connect search, sync files, then start watching — in that order.
+// Meilisearch must be ready before the sync or nothing gets indexed.
+async function startup(): Promise<void> {
+  await search.initSearch(); // resolves false (never throws) when unavailable
   try {
     await watcher.fullSync();
-    // Start file watcher after initial sync
-    watcher.startWatcher();
   } catch (error) {
     console.error('Startup sync error:', error);
-    // Start watcher anyway
-    watcher.startWatcher();
   }
+  watcher.startWatcher();
 }
-startupSync();
 
 // ==================== MCP TOOL DEFINITIONS ====================
 
@@ -198,8 +194,8 @@ async function handleToolCall(name: string, args: any): Promise<any> {
     case 'create_category': {
       const { id, name, description } = args;
       // Validate id format
-      if (!/^[a-z0-9-]+$/.test(id)) {
-        return { content: [{ type: 'text', text: `❌ Invalid category ID: must be lowercase letters, numbers, and hyphens only` }], isError: true };
+      if (!ID_PATTERN.test(id)) {
+        return { content: [{ type: 'text', text: `❌ Invalid category ID: must be ${ID_RULE}` }], isError: true };
       }
       // Check if exists
       const existing = db.getCategory(id);
@@ -219,6 +215,12 @@ async function handleToolCall(name: string, args: any): Promise<any> {
 
     case 'create_page': {
       const { category, slug, title, content } = args;
+      if (!ID_PATTERN.test(slug)) {
+        return { content: [{ type: 'text', text: `❌ Invalid slug: must be ${ID_RULE}` }], isError: true };
+      }
+      if (!db.getCategory(category)) {
+        return { content: [{ type: 'text', text: `❌ Category "${category}" does not exist. Use list_categories or create_category first.` }], isError: true };
+      }
       // Create in DB
       const page = db.createPage(category, slug, title, content);
       // Write to file
@@ -431,6 +433,12 @@ function createMcpServer(): Server {
 function createHttpServer() {
   const app = express();
 
+  // Express 4 does not catch rejected promises from async handlers; an
+  // unhandled rejection would terminate the process. Route them to next().
+  type AsyncHandler = (req: express.Request, res: express.Response) => Promise<unknown>;
+  const wrap = (fn: AsyncHandler): express.RequestHandler =>
+    (req, res, next) => { fn(req, res).catch(next); };
+
   // Middleware
   app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
   app.use(express.json({ limit: '10mb' }));
@@ -461,8 +469,8 @@ function createHttpServer() {
         return res.status(400).json({ error: 'Missing required fields: id, name' });
       }
       // Validate id format (lowercase, no spaces)
-      if (!/^[a-z0-9-]+$/.test(id)) {
-        return res.status(400).json({ error: 'Category ID must be lowercase letters, numbers, and hyphens only' });
+      if (!ID_PATTERN.test(id)) {
+        return res.status(400).json({ error: `Category ID must be ${ID_RULE}` });
       }
       // Check if category already exists
       const existing = db.getCategory(id);
@@ -506,11 +514,17 @@ function createHttpServer() {
   });
 
   // Create a page
-  app.post('/api/pages', async (req, res) => {
+  app.post('/api/pages', wrap(async (req, res) => {
     try {
       const { category, slug, title, content } = req.body;
       if (!category || !slug || !title || !content) {
         return res.status(400).json({ error: 'Missing required fields: category, slug, title, content' });
+      }
+      if (!ID_PATTERN.test(slug)) {
+        return res.status(400).json({ error: `Slug must be ${ID_RULE}` });
+      }
+      if (!db.getCategory(category)) {
+        return res.status(404).json({ error: `Category "${category}" does not exist` });
       }
       const page = db.createPage(category, slug, title, content, 'user');
       files.writePageFile(category, slug, title, content, page.id, 'user');
@@ -527,10 +541,10 @@ function createHttpServer() {
     } catch (error) {
       res.status(500).json({ error: String(error) });
     }
-  });
+  }));
 
   // Update a page
-  app.put('/api/pages/:category/:slug', async (req, res) => {
+  app.put('/api/pages/:category/:slug', wrap(async (req, res) => {
     try {
       const { category, slug } = req.params;
       const { title, content } = req.body;
@@ -554,10 +568,10 @@ function createHttpServer() {
     } catch (error) {
       res.status(500).json({ error: String(error) });
     }
-  });
+  }));
 
   // Delete a page
-  app.delete('/api/pages/:category/:slug', async (req, res) => {
+  app.delete('/api/pages/:category/:slug', wrap(async (req, res) => {
     const { category, slug } = req.params;
     const page = db.getPage(category, slug);
     const deleted = db.deletePage(category, slug);
@@ -566,10 +580,10 @@ function createHttpServer() {
       if (page) await search.deletePage(page.id);
     }
     res.json({ deleted });
-  });
+  }));
 
   // Search
-  app.get('/api/search', async (req, res) => {
+  app.get('/api/search', wrap(async (req, res) => {
     const query = req.query.q as string;
     const category = req.query.category as string | undefined;
     const limit = parseInt(req.query.limit as string || '20', 10);
@@ -584,15 +598,15 @@ function createHttpServer() {
     // Fallback to SQLite
     const results = db.searchPages(query);
     res.json({ results, engine: 'sqlite' });
-  });
+  }));
 
   // Search suggestions (autocomplete)
-  app.get('/api/search/suggest', async (req, res) => {
+  app.get('/api/search/suggest', wrap(async (req, res) => {
     const query = req.query.q as string;
     if (!query || query.length < 2) return res.json({ suggestions: [] });
     const suggestions = await search.getSuggestions(query);
     res.json({ suggestions });
-  });
+  }));
 
   // Graph
   app.get('/api/graph', (req, res) => {
@@ -607,10 +621,10 @@ function createHttpServer() {
   });
 
   // Sync files
-  app.post('/api/sync', async (req, res) => {
+  app.post('/api/sync', wrap(async (req, res) => {
     const result = await watcher.fullSync();
     res.json(result);
-  });
+  }));
 
   // Serve raw markdown file
   app.get('/api/raw/:category/:slug', (req, res) => {
@@ -626,7 +640,7 @@ function createHttpServer() {
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
   // Handle all MCP requests (POST for JSON-RPC, GET for SSE stream, DELETE for session close)
-  app.all('/mcp', async (req, res) => {
+  app.all('/mcp', wrap(async (req, res) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     console.error(`🔍 MCP request: ${req.method} sessionId=${sessionId} body=${JSON.stringify(req.body)?.substring(0, 200)}`);
     let transport: StreamableHTTPServerTransport;
@@ -668,6 +682,13 @@ function createHttpServer() {
 
     // Handle the request with the transport
     await transport.handleRequest(req, res, req.body);
+  }));
+
+  // Last-resort error handler: log and answer 500 instead of crashing
+  app.use((err: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('❌ Unhandled route error:', err);
+    if (res.headersSent) return next(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
   });
 
   // ==================== START SERVER ====================
@@ -683,6 +704,8 @@ function createHttpServer() {
 // ==================== START ====================
 
 async function main() {
+  await startup();
+
   if (TRANSPORT === 'http') {
     createHttpServer();
   } else {
