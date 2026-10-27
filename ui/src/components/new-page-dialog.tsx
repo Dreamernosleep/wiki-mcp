@@ -23,11 +23,13 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: Category[];
+  /** Category preselected when the dialog opens (e.g. from a category's "+" button) */
+  initialCategory?: string;
   /** `template` is a template id; undefined = blank page */
   onCreate: (input: { category: string; slug: string; title: string; template?: string }) => Promise<void>;
 }
 
-export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Props) {
+export function NewPageDialog({ open, onOpenChange, categories, initialCategory, onCreate }: Props) {
   const [category, setCategory] = useState('');
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
@@ -37,10 +39,10 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
   const [template, setTemplate] = useState(BLANK);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset the form each time the dialog opens; default to the first category
+  // Reset the form each time the dialog opens; default to the requested or first category
   useEffect(() => {
     if (open) {
-      setCategory(categories[0]?.id ?? '');
+      setCategory(initialCategory ?? categories[0]?.id ?? '');
       setTitle('');
       setSlug('');
       setSlugEdited(false);
@@ -54,7 +56,7 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
           toast.error(`Could not load templates: ${err instanceof Error ? err.message : String(err)}`);
         });
     }
-  }, [open, categories]);
+  }, [open, categories, initialCategory]);
 
   // Templates offered for the chosen category: general ones first, then the category's own
   const offered = [

@@ -32,7 +32,9 @@ export default function App() {
   const [editorText, setEditorText] = useState('');
   const [mode, setMode] = useState<ViewMode>('visual');
   const [links, setLinks] = useState<LinkedPagesData | null>(null);
-  const [newPageOpen, setNewPageOpen] = useState(false);
+  // New page dialog: closed, or open with an optional preselected category
+  const [newPage, setNewPage] = useState<{ open: boolean; category?: string }>({ open: false });
+  const openNewPage = useCallback((category?: string) => setNewPage({ open: true, category }), []);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
   // Save-as-template (from the open page) or new template (from the sidebar)
   const [templateDialog, setTemplateDialog] = useState<'closed' | 'from-page' | 'new'>('closed');
@@ -203,12 +205,13 @@ export default function App() {
         void saveDocument();
       } else if (mod && e.key.toLowerCase() === 'n') {
         e.preventDefault();
-        setNewPageOpen(true);
+        // Ctrl+N from an open page starts in that page's category
+        openNewPage(currentPage?.category_id);
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [saveDocument]);
+  }, [saveDocument, openNewPage, currentPage]);
 
   // ---- Render -------------------------------------------------------------
 
@@ -230,7 +233,7 @@ export default function App() {
         currentTemplate={currentTemplate}
         onOpenPage={openPage}
         onOpenTemplate={openTemplate}
-        onNewPage={() => setNewPageOpen(true)}
+        onNewPage={openNewPage}
         onNewCategory={() => setNewCategoryOpen(true)}
         onNewTemplate={() => setTemplateDialog('new')}
       />
@@ -279,11 +282,17 @@ export default function App() {
             {currentPage && <LinkedPages links={links} onOpenPage={openPage} />}
           </>
         ) : (
-          <Welcome onNewPage={() => setNewPageOpen(true)} />
+          <Welcome onNewPage={() => openNewPage()} />
         )}
       </SidebarInset>
 
-      <NewPageDialog open={newPageOpen} onOpenChange={setNewPageOpen} categories={categories} onCreate={createPage} />
+      <NewPageDialog
+        open={newPage.open}
+        onOpenChange={(open) => setNewPage((s) => ({ ...s, open }))}
+        categories={categories}
+        initialCategory={newPage.category}
+        onCreate={createPage}
+      />
       <NewCategoryDialog open={newCategoryOpen} onOpenChange={setNewCategoryOpen} onCreate={createCategory} />
       <SaveTemplateDialog
         open={templateDialog !== 'closed'}

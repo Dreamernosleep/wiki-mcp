@@ -27,7 +27,8 @@ interface Props {
   currentTemplate: Template | null;
   onOpenPage: (category: string, slug: string) => void;
   onOpenTemplate: (id: string) => void;
-  onNewPage: () => void;
+  /** Opens the New page dialog, optionally with a category preselected */
+  onNewPage: (category?: string) => void;
   onNewCategory: () => void;
   onNewTemplate: () => void;
 }
@@ -71,7 +72,7 @@ export function AppSidebar({
             <TooltipContent>New category</TooltipContent>
           </Tooltip>
         </div>
-        <Button size="sm" className="w-full justify-start" onClick={onNewPage}>
+        <Button size="sm" className="w-full justify-start" onClick={() => onNewPage()}>
           <Plus className="size-4" />
           New page
           <kbd className="ml-auto rounded border border-primary-foreground/30 px-1 font-mono text-[10px] opacity-70">
@@ -96,6 +97,7 @@ export function AppSidebar({
               setSearch(null);
               onOpenTemplate(id);
             }}
+            onNewPage={onNewPage}
             onNewTemplate={onNewTemplate}
           />
         )}

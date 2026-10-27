@@ -22,6 +22,8 @@ interface Props {
   currentTemplate: Template | null;
   onOpenPage: (category: string, slug: string) => void;
   onOpenTemplate: (id: string) => void;
+  /** Opens the New page dialog with this category preselected */
+  onNewPage: (category: string) => void;
   onNewTemplate: () => void;
 }
 
@@ -35,6 +37,7 @@ export function PageTree({
   currentTemplate,
   onOpenPage,
   onOpenTemplate,
+  onNewPage,
   onNewTemplate,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -74,6 +77,7 @@ export function PageTree({
             count={catPages.length}
             open={!collapsed.has(cat.id)}
             onToggle={() => toggle(cat.id)}
+            action={<AddButton label={`New page in ${cat.name}`} onClick={() => onNewPage(cat.id)} />}
           >
             {catPages.length === 0 ? (
               <Empty>No pages</Empty>
@@ -102,24 +106,7 @@ export function PageTree({
         count={templates.length}
         open={!collapsed.has(TEMPLATES_KEY)}
         onToggle={() => toggle(TEMPLATES_KEY)}
-        action={
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNewTemplate();
-                }}
-                aria-label="New template"
-                className="flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
-              >
-                <Plus className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>New template</TooltipContent>
-          </Tooltip>
-        }
+        action={<AddButton label="New template" onClick={onNewTemplate} />}
       >
         {templates.length === 0 ? (
           <Empty>No templates</Empty>
@@ -199,6 +186,28 @@ function Section({
         </CollapsibleContent>
       </SidebarGroup>
     </Collapsible>
+  );
+}
+
+/** The small "+" at the right of a section header */
+function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          aria-label={label}
+          className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
 
