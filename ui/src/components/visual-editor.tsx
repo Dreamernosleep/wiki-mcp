@@ -11,6 +11,8 @@ import { common, createLowlight } from 'lowlight';
 
 import { EditorToolbar } from '@/components/editor-toolbar';
 import { WikiLinkHighlight } from '@/lib/editor/wiki-link-highlight';
+import { WikiLinkSuggestion } from '@/lib/editor/wiki-link-suggestion';
+import type { Page } from '@/lib/api';
 import { tidyMarkdown } from '@/lib/editor/markdown-output';
 
 const lowlight = createLowlight(common);
@@ -19,13 +21,20 @@ interface Props {
   /** Markdown body (no frontmatter) */
   value: string;
   onChange: (markdown: string) => void;
+  /** All loaded pages, offered by the `[[` picker */
+  pages: Page[];
 }
 
 /**
  * WYSIWYG editor that round-trips to Markdown. Files on disk stay plain .md;
  * `[[category/slug]]` links are kept as text and only highlighted.
  */
-export function VisualEditor({ value, onChange }: Props) {
+export function VisualEditor({ value, onChange, pages }: Props) {
+  // Read through a ref so the picker always sees the latest list without
+  // re-creating the editor
+  const pagesRef = useRef(pages);
+  pagesRef.current = pages;
+
   // Markdown we last emitted, so external value changes (opening another
   // page) can be told apart from our own updates.
   const lastEmitted = useRef<string | null>(null);
@@ -44,6 +53,7 @@ export function VisualEditor({ value, onChange }: Props) {
       Image,
       Placeholder.configure({ placeholder: 'Start writing… Use [[page-slug]] to link to another page.' }),
       WikiLinkHighlight,
+      WikiLinkSuggestion.configure({ getPages: () => pagesRef.current }),
       Markdown,
     ],
     content: value,

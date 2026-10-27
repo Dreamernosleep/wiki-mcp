@@ -167,7 +167,7 @@ export default function App() {
           <>
             <div className="flex min-h-0 flex-1">
               {mode === 'visual' && (
-                <VisualEditor key={currentPage.id} value={editorText} onChange={setEditorText} />
+                <VisualEditor key={currentPage.id} value={editorText} onChange={setEditorText} pages={pages} />
               )}
               {mode === 'markdown' && (
                 <>

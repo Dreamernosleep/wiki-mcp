@@ -21,6 +21,37 @@ export interface AutocompleteState {
 const IDLE: AutocompleteState = { active: false, startPos: -1, query: '', selectedIndex: 0, items: [] };
 const MAX_ITEMS = 8;
 
+/**
+ * Pages to offer for a `[[` query. Shared by the textarea and visual editors:
+ *  - <2 chars: filters the already loaded pages locally
+ *  - ≥2 chars: asks the search API (typo-tolerant when Meilisearch is up)
+ */
+export async function searchWikiLinkItems(query: string, pages: Page[]): Promise<AutocompleteItem[]> {
+  let items: AutocompleteItem[];
+  if (query.length >= 2) {
+    try {
+      const { results } = await api.search(query, MAX_ITEMS);
+      items = results.map((r) => ({ category: r.category, slug: r.slug, title: r.title, path: r.path }));
+    } catch {
+      items = [];
+    }
+  } else {
+    items = pages.map((p) => ({
+      category: p.category_id,
+      slug: p.slug,
+      title: p.title,
+      path: `${p.category_id}/${p.slug}`,
+    }));
+  }
+  if (query) {
+    const q = query.toLowerCase();
+    items = items.filter(
+      (i) => i.title.toLowerCase().includes(q) || i.slug.toLowerCase().includes(q) || i.path.toLowerCase().includes(q)
+    );
+  }
+  return items.slice(0, MAX_ITEMS);
+}
+
 interface Options {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   value: string;
@@ -51,29 +82,7 @@ export function useWikiAutocomplete({ textareaRef, value, onChange, pages }: Opt
 
   const fetchItems = useCallback(
     async (query: string) => {
-      let items: AutocompleteItem[] = [];
-      if (query.length >= 2) {
-        try {
-          const { results } = await api.search(query, MAX_ITEMS);
-          items = results.map((r) => ({ category: r.category, slug: r.slug, title: r.title, path: r.path }));
-        } catch {
-          items = [];
-        }
-      } else {
-        items = pages.map((p) => ({
-          category: p.category_id,
-          slug: p.slug,
-          title: p.title,
-          path: `${p.category_id}/${p.slug}`,
-        }));
-      }
-      if (query) {
-        const q = query.toLowerCase();
-        items = items.filter(
-          (i) => i.title.toLowerCase().includes(q) || i.slug.toLowerCase().includes(q) || i.path.toLowerCase().includes(q)
-        );
-      }
-      items = items.slice(0, MAX_ITEMS);
+      const items = await searchWikiLinkItems(query, pages);
       // Ignore stale responses
       if (latestQuery.current !== query) return;
       setState((s) => (s.active ? { ...s, items, selectedIndex: 0 } : s));
