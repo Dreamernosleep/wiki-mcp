@@ -54,15 +54,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Docker images
-        run: |
-          docker-compose build
+        run: docker compose build
 
       - name: Test Docker Compose
         run: |
-          docker-compose up -d
-          sleep 10
-          curl -f http://localhost:3000/health || exit 1
-          docker-compose down
+          docker compose up -d
+          # Wait up to 90s for the API (it connects to Meilisearch before listening)
+          for i in $(seq 1 45); do
+            if curl -fs http://localhost:3000/health; then echo; echo "API healthy"; break; fi
+            if [ "$i" -eq 45 ]; then echo "API did not become healthy"; docker compose logs; exit 1; fi
+            sleep 2
+          done
+          curl -fs http://localhost/api/categories > /dev/null && echo "UI proxy OK"
+          docker compose down
 
   lint:
     name: Lint

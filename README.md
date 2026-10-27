@@ -21,7 +21,7 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 | 🌐 **Web UI** | Clean black-and-white editor built with React + [shadcn/ui](https://ui.shadcn.com) — live preview, split view, autocomplete, light/dark |
 | 🔗 **Wiki Links** | `[[page-slug]]` or `[[category/page-slug]]` with autocomplete while typing |
 | 📂 **Dynamic Categories** | Create custom folders (categories) on the fly — not just finance/ops/service |
-| 🐳 **Docker Ready** | One command to run everything: `docker-compose up -d` |
+| 🐳 **Docker Ready** | One command to run everything: `docker compose up -d` |
 | 👀 **File Watcher** | Edit files in VS Code/Obsidian — changes auto-sync to search index |
 | 📊 **Graph View** | See how pages connect with a full link graph |
 | 🔄 **Dual Transport** | MCP over stdio (local) or Streamable HTTP (Docker/remote) |
@@ -30,7 +30,7 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     docker-compose up                    │
+│                     docker compose up                    │
 ├─────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐  │
 │  │ Meilisearch │  │  Wiki API   │  │    Web UI       │  │

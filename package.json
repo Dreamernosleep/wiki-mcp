@@ -12,10 +12,10 @@
     "test": "tsx src/test.ts",
     "test:mcp": "tsx src/client-test.ts",
     "sync": "tsx src/sync.ts",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
   },
   "keywords": ["wiki", "mcp", "knowledge-base", "markdown", "search", "ai"],
   "license": "MIT",
