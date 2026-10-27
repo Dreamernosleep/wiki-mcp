@@ -16,13 +16,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: Category[];
-  onCreate: (input: { category: string; slug: string; title: string; content: string }) => Promise<void>;
+  onCreate: (input: { category: string; slug: string; title: string }) => Promise<void>;
 }
 
 export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Props) {
@@ -31,7 +30,6 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
   const [slug, setSlug] = useState('');
   const [slugEdited, setSlugEdited] = useState(false); // user typed a custom slug
   const [slugEditing, setSlugEditing] = useState(false); // slug input is visible
-  const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Reset the form each time the dialog opens; default to the first category
@@ -42,7 +40,6 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
       setSlug('');
       setSlugEdited(false);
       setSlugEditing(false);
-      setContent('');
     }
   }, [open, categories]);
 
@@ -67,7 +64,7 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
     if (!slug) return toast.error('The title must contain at least one letter or number');
     setSubmitting(true);
     try {
-      await onCreate({ category, slug, title, content });
+      await onCreate({ category, slug, title });
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -82,7 +79,7 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>New page</DialogTitle>
-            <DialogDescription>Pages are markdown files stored in the category folder.</DialogDescription>
+            <DialogDescription>The page opens in the editor right after it is created.</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-1.5">
@@ -156,19 +153,6 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
                 </Button>
               </div>
             )}
-          </div>
-
-          <div className="grid gap-1.5">
-            <Label htmlFor="new-page-content">Content (Markdown)</Label>
-            <Textarea
-              id="new-page-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder={'# Q4 Budget Planning\n\nWrite your content here. Use [[links]] to link other pages.'}
-              rows={8}
-              required
-              className="font-mono text-[13px]"
-            />
           </div>
 
           <DialogFooter>

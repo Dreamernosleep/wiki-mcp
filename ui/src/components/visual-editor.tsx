@@ -23,13 +23,15 @@ interface Props {
   onChange: (markdown: string) => void;
   /** All loaded pages, offered by the `[[` picker */
   pages: Page[];
+  /** Where to put the cursor on mount; false leaves the editor unfocused */
+  autofocus?: 'start' | 'end' | false;
 }
 
 /**
  * WYSIWYG editor that round-trips to Markdown. Files on disk stay plain .md;
  * `[[category/slug]]` links are kept as text and only highlighted.
  */
-export function VisualEditor({ value, onChange, pages }: Props) {
+export function VisualEditor({ value, onChange, pages, autofocus = false }: Props) {
   // Read through a ref so the picker always sees the latest list without
   // re-creating the editor
   const pagesRef = useRef(pages);
@@ -58,6 +60,7 @@ export function VisualEditor({ value, onChange, pages }: Props) {
     ],
     content: value,
     contentType: 'markdown',
+    autofocus,
     editorProps: {
       attributes: {
         class: 'markdown-body prose-editor mx-auto min-h-full w-full max-w-3xl px-8 py-6 outline-none',

@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web UI now calls the API through a relative `/api` path; the nginx container proxies it to the API using the `API_URL` env var (previously hardcoded to `localhost:3000`)
 - Saving a page from the UI no longer sends the frontmatter block as page content
 - Visual editor: pages open in a WYSIWYG editor (Tiptap) with a formatting toolbar that reads and writes Markdown; `[[page]]` shortcodes stay as text and are highlighted, and typing `[[` opens the same page picker as the Markdown editor. The previous source editor remains available as "Markdown" mode (source + live preview), plus a read-only "Preview" mode. The frontmatter block is no longer shown in the editor
-- New page dialog: the slug (file name) is generated from the title and shown read-only; an Edit button reveals the input for custom slugs
+- New page dialog: only category, title and file name are asked; the slug (file name) is generated from the title and shown read-only with an Edit button for custom slugs. The new page opens straight in the visual editor with the title as its heading and the cursor ready to type
 
 ### Fixed
 - File sync no longer fails with `FOREIGN KEY constraint failed` on a fresh database when pages link to each other; pages are now inserted with their frontmatter ID directly, and one bad file no longer aborts the whole sync

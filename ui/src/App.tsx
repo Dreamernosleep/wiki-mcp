@@ -24,6 +24,8 @@ export default function App() {
   const [newPageOpen, setNewPageOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Set when a page was just created so the editor can place the cursor ready to type
+  const [freshPage, setFreshPage] = useState(false);
 
   const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -48,9 +50,10 @@ export default function App() {
   // ---- Page actions -------------------------------------------------------
 
   const openPage = useCallback(
-    async (category: string, slug: string) => {
+    async (category: string, slug: string, fresh = false) => {
       try {
         const page = await api.getPage(category, slug);
+        setFreshPage(fresh);
         setCurrentPage(page);
         // Edit the body only; the server owns the frontmatter block
         setEditorText(stripFrontmatter(page.raw_markdown || page.content));
@@ -101,11 +104,13 @@ export default function App() {
   }, [currentPage, closePage, loadPages]);
 
   const createPage = useCallback(
-    async (input: { category: string; slug: string; title: string; content: string }) => {
-      await api.createPage(input);
+    async (input: { category: string; slug: string; title: string }) => {
+      // Start the body with the title as a heading; the rest is written in the visual editor
+      await api.createPage({ ...input, content: `# ${input.title}\n\n` });
       toast.success('Page created');
       await loadPages();
-      await openPage(input.category, input.slug);
+      setMode('visual');
+      await openPage(input.category, input.slug, true);
     },
     [loadPages, openPage]
   );
@@ -167,7 +172,13 @@ export default function App() {
           <>
             <div className="flex min-h-0 flex-1">
               {mode === 'visual' && (
-                <VisualEditor key={currentPage.id} value={editorText} onChange={setEditorText} pages={pages} />
+                <VisualEditor
+                  key={currentPage.id}
+                  value={editorText}
+                  onChange={setEditorText}
+                  pages={pages}
+                  autofocus={freshPage ? 'end' : false}
+                />
               )}
               {mode === 'markdown' && (
                 <>
