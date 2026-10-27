@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 
-import { api, type Category, type LinkedPages as LinkedPagesData, type Page, type TemplateInput } from '@/lib/api';
+import {
+  api,
+  type Category,
+  type LinkedPages as LinkedPagesData,
+  type Page,
+  type Template,
+  type TemplateInput,
+} from '@/lib/api';
 import { extractTitle, stripFrontmatter } from '@/lib/markdown';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -18,16 +25,20 @@ import { SaveTemplateDialog } from '@/components/save-template-dialog';
 export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  // The editor shows either a page or a template, never both
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
+  const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null);
   const [editorText, setEditorText] = useState('');
   const [mode, setMode] = useState<ViewMode>('visual');
   const [links, setLinks] = useState<LinkedPagesData | null>(null);
   const [newPageOpen, setNewPageOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
-  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+  // Save-as-template (from the open page) or new template (from the sidebar)
+  const [templateDialog, setTemplateDialog] = useState<'closed' | 'from-page' | 'new'>('closed');
   const [saving, setSaving] = useState(false);
-  // Set when a page was just created so the editor can place the cursor ready to type
-  const [freshPage, setFreshPage] = useState(false);
+  // Set when a document was just created so the editor can place the cursor ready to type
+  const [fresh, setFresh] = useState(false);
 
   const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -35,10 +46,11 @@ export default function App() {
 
   const loadCategories = useCallback(async () => setCategories(await api.listCategories()), []);
   const loadPages = useCallback(async () => setPages(await api.listPages()), []);
+  const loadTemplates = useCallback(async () => setTemplates(await api.listTemplates()), []);
 
   useEffect(() => {
-    Promise.all([loadCategories(), loadPages()]).catch((e) => toast.error(errorMessage(e)));
-  }, [loadCategories, loadPages]);
+    Promise.all([loadCategories(), loadPages(), loadTemplates()]).catch((e) => toast.error(errorMessage(e)));
+  }, [loadCategories, loadPages, loadTemplates]);
 
   const loadLinks = useCallback(async (page: Page) => {
     try {
@@ -49,13 +61,14 @@ export default function App() {
     }
   }, []);
 
-  // ---- Page actions -------------------------------------------------------
+  // ---- Open / close -------------------------------------------------------
 
   const openPage = useCallback(
-    async (category: string, slug: string, fresh = false) => {
+    async (category: string, slug: string, isFresh = false) => {
       try {
         const page = await api.getPage(category, slug);
-        setFreshPage(fresh);
+        setFresh(isFresh);
+        setCurrentTemplate(null);
         setCurrentPage(page);
         // Edit the body only; the server owns the frontmatter block
         setEditorText(stripFrontmatter(page.raw_markdown || page.content));
@@ -67,14 +80,46 @@ export default function App() {
     [loadLinks]
   );
 
-  const closePage = useCallback(() => {
+  const openTemplate = useCallback(async (id: string, isFresh = false) => {
+    try {
+      const template = await api.getTemplate(id);
+      setFresh(isFresh);
+      setCurrentPage(null);
+      setLinks(null);
+      setCurrentTemplate(template);
+      setEditorText(template.body);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, []);
+
+  const closeDocument = useCallback(() => {
     setCurrentPage(null);
+    setCurrentTemplate(null);
     setEditorText('');
     setLinks(null);
   }, []);
 
-  const savePage = useCallback(async () => {
-    if (!currentPage || saving) return;
+  // ---- Save / delete (page or template) -----------------------------------
+
+  const saveDocument = useCallback(async () => {
+    if (saving) return;
+    if (currentTemplate) {
+      setSaving(true);
+      try {
+        const updated = await api.updateTemplate(currentTemplate.id, { body: editorText });
+        toast.success('Template saved');
+        setCurrentTemplate(updated);
+        setEditorText(updated.body);
+        await loadTemplates();
+      } catch (e) {
+        toast.error(errorMessage(e));
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+    if (!currentPage) return;
     setSaving(true);
     try {
       const title = extractTitle(editorText, currentPage.title);
@@ -91,19 +136,27 @@ export default function App() {
     } finally {
       setSaving(false);
     }
-  }, [currentPage, editorText, saving, loadPages, loadLinks]);
+  }, [currentPage, currentTemplate, editorText, saving, loadPages, loadTemplates, loadLinks]);
 
-  const deletePage = useCallback(async () => {
-    if (!currentPage) return;
+  const deleteDocument = useCallback(async () => {
     try {
-      await api.deletePage(currentPage.category_id, currentPage.slug);
-      toast.success('Page deleted');
-      closePage();
-      await loadPages();
+      if (currentTemplate) {
+        await api.deleteTemplate(currentTemplate.id);
+        toast.success('Template deleted');
+        closeDocument();
+        await loadTemplates();
+      } else if (currentPage) {
+        await api.deletePage(currentPage.category_id, currentPage.slug);
+        toast.success('Page deleted');
+        closeDocument();
+        await loadPages();
+      }
     } catch (e) {
       toast.error(errorMessage(e));
     }
-  }, [currentPage, closePage, loadPages]);
+  }, [currentPage, currentTemplate, closeDocument, loadPages, loadTemplates]);
+
+  // ---- Create -------------------------------------------------------------
 
   const createPage = useCallback(
     async (input: { category: string; slug: string; title: string; template?: string }) => {
@@ -118,10 +171,18 @@ export default function App() {
     [loadPages, openPage]
   );
 
-  const createTemplate = useCallback(async (input: TemplateInput & { id: string }) => {
-    const template = await api.createTemplate(input);
-    toast.success(`Template "${template.name}" saved`);
-  }, []);
+  const createTemplate = useCallback(
+    async (input: TemplateInput & { id: string }, openAfter: boolean) => {
+      const template = await api.createTemplate(input);
+      toast.success(`Template "${template.name}" saved`);
+      await loadTemplates();
+      if (openAfter) {
+        setMode('visual');
+        await openTemplate(template.id, true);
+      }
+    },
+    [loadTemplates, openTemplate]
+  );
 
   const createCategory = useCallback(
     async (input: { id: string; name: string; description: string }) => {
@@ -139,7 +200,7 @@ export default function App() {
       const mod = e.ctrlKey || e.metaKey;
       if (mod && e.key.toLowerCase() === 's') {
         e.preventDefault();
-        if (currentPage) void savePage();
+        void saveDocument();
       } else if (mod && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         setNewPageOpen(true);
@@ -147,46 +208,56 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [currentPage, savePage]);
+  }, [saveDocument]);
 
   // ---- Render -------------------------------------------------------------
 
-  const dirty =
-    currentPage !== null && editorText !== stripFrontmatter(currentPage.raw_markdown || currentPage.content);
+  const original = currentTemplate
+    ? currentTemplate.body
+    : currentPage
+      ? stripFrontmatter(currentPage.raw_markdown || currentPage.content)
+      : null;
+  const dirty = original !== null && editorText !== original;
+  const documentKey = currentTemplate ? `template:${currentTemplate.id}` : currentPage ? currentPage.id : null;
 
   return (
     <SidebarProvider style={{ '--sidebar-width': '17rem' } as CSSProperties}>
       <AppSidebar
         categories={categories}
         pages={pages}
+        templates={templates}
         currentPage={currentPage}
+        currentTemplate={currentTemplate}
         onOpenPage={openPage}
+        onOpenTemplate={openTemplate}
         onNewPage={() => setNewPageOpen(true)}
         onNewCategory={() => setNewCategoryOpen(true)}
+        onNewTemplate={() => setTemplateDialog('new')}
       />
 
       <SidebarInset className="h-svh overflow-hidden">
         <PageHeader
           page={currentPage}
+          template={currentTemplate}
           mode={mode}
           onModeChange={setMode}
           dirty={dirty}
           saving={saving}
-          onSave={savePage}
-          onDelete={deletePage}
-          onSaveAsTemplate={() => setSaveTemplateOpen(true)}
+          onSave={saveDocument}
+          onDelete={deleteDocument}
+          onSaveAsTemplate={() => setTemplateDialog('from-page')}
         />
 
-        {currentPage ? (
+        {documentKey ? (
           <>
             <div className="flex min-h-0 flex-1">
               {mode === 'visual' && (
                 <VisualEditor
-                  key={currentPage.id}
+                  key={documentKey}
                   value={editorText}
                   onChange={setEditorText}
                   pages={pages}
-                  autofocus={freshPage ? 'end' : false}
+                  autofocus={fresh ? 'end' : false}
                 />
               )}
               {mode === 'markdown' && (
@@ -205,7 +276,7 @@ export default function App() {
                 </div>
               )}
             </div>
-            <LinkedPages links={links} onOpenPage={openPage} />
+            {currentPage && <LinkedPages links={links} onOpenPage={openPage} />}
           </>
         ) : (
           <Welcome onNewPage={() => setNewPageOpen(true)} />
@@ -214,16 +285,15 @@ export default function App() {
 
       <NewPageDialog open={newPageOpen} onOpenChange={setNewPageOpen} categories={categories} onCreate={createPage} />
       <NewCategoryDialog open={newCategoryOpen} onOpenChange={setNewCategoryOpen} onCreate={createCategory} />
-      {currentPage && (
-        <SaveTemplateDialog
-          open={saveTemplateOpen}
-          onOpenChange={setSaveTemplateOpen}
-          page={currentPage}
-          body={editorText}
-          categories={categories}
-          onCreate={createTemplate}
-        />
-      )}
+      <SaveTemplateDialog
+        open={templateDialog !== 'closed'}
+        onOpenChange={(open) => !open && setTemplateDialog('closed')}
+        // From the open page: copy its body. From the sidebar: start a new template
+        page={templateDialog === 'from-page' ? currentPage : null}
+        body={templateDialog === 'from-page' ? editorText : ''}
+        categories={categories}
+        onCreate={(input) => createTemplate(input, templateDialog === 'new')}
+      />
     </SidebarProvider>
   );
 }

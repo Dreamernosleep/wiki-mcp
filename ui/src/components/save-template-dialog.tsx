@@ -21,8 +21,9 @@ const GENERAL = '__general__';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  page: Page;
-  /** Current editor body (no frontmatter) */
+  /** The page being saved as a template; null = create an empty template */
+  page: Page | null;
+  /** Current editor body of that page (no frontmatter) */
   body: string;
   categories: Category[];
   onCreate: (input: TemplateInput & { id: string }) => Promise<void>;
@@ -41,7 +42,10 @@ export function bodyToTemplate(body: string, title: string): string {
   return lines.join('\n');
 }
 
-/** Saves the open page as a reusable template in content/_templates. */
+/**
+ * Creates a template in content/_templates: either a copy of the open page
+ * ("Save as template") or an empty one to write in the editor ("New template").
+ */
 export function SaveTemplateDialog({ open, onOpenChange, page, body, categories, onCreate }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -53,10 +57,10 @@ export function SaveTemplateDialog({ open, onOpenChange, page, body, categories,
     if (open) {
       setName('');
       setDescription('');
-      setCategory(page.category_id);
+      setCategory(page?.category_id ?? GENERAL);
       setIsDefault(false);
     }
-  }, [open, page.category_id]);
+  }, [open, page]);
 
   const id = slugify(name);
   const hasCategory = category !== GENERAL;
@@ -72,7 +76,7 @@ export function SaveTemplateDialog({ open, onOpenChange, page, body, categories,
         description: description.trim(),
         category: hasCategory ? category : null,
         default: hasCategory && isDefault,
-        body: bodyToTemplate(body, page.title),
+        body: page ? bodyToTemplate(body, page.title) : '# {{title}}\n\n',
       });
       onOpenChange(false);
     } catch (err) {
@@ -87,10 +91,11 @@ export function SaveTemplateDialog({ open, onOpenChange, page, body, categories,
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Save as template</DialogTitle>
+            <DialogTitle>{page ? 'Save as template' : 'New template'}</DialogTitle>
             <DialogDescription>
-              Copies the current content of “{page.title}” into a reusable template. The page heading becomes the new
-              page’s title.
+              {page
+                ? `Copies the current content of “${page.title}” into a reusable template. The page heading becomes the new page’s title.`
+                : 'Templates are markdown files in content/_templates. Write {{title}} where the page title should go.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -167,7 +172,7 @@ export function SaveTemplateDialog({ open, onOpenChange, page, body, categories,
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Save template'}
+              {submitting ? 'Saving…' : page ? 'Save template' : 'Create template'}
             </Button>
           </DialogFooter>
         </form>

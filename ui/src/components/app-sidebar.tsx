@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, FolderPlus, Plus } from 'lucide-react';
 
-import type { Category, Page, SearchEngine, SearchResult } from '@/lib/api';
+import type { Category, Page, SearchEngine, SearchResult, Template } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import {
   Sidebar,
@@ -22,13 +22,28 @@ export const APP_TAGLINE = 'Knowledge base';
 interface Props {
   categories: Category[];
   pages: Page[];
+  templates: Template[];
   currentPage: Page | null;
+  currentTemplate: Template | null;
   onOpenPage: (category: string, slug: string) => void;
+  onOpenTemplate: (id: string) => void;
   onNewPage: () => void;
   onNewCategory: () => void;
+  onNewTemplate: () => void;
 }
 
-export function AppSidebar({ categories, pages, currentPage, onOpenPage, onNewPage, onNewCategory }: Props) {
+export function AppSidebar({
+  categories,
+  pages,
+  templates,
+  currentPage,
+  currentTemplate,
+  onOpenPage,
+  onOpenTemplate,
+  onNewPage,
+  onNewCategory,
+  onNewTemplate,
+}: Props) {
   const [search, setSearch] = useState<{ results: SearchResult[]; engine: SearchEngine } | null>(null);
 
   const open = (category: string, slug: string) => {
@@ -70,7 +85,19 @@ export function AppSidebar({ categories, pages, currentPage, onOpenPage, onNewPa
         {search ? (
           <SearchResults results={search.results} engine={search.engine} onOpenPage={open} onClear={() => setSearch(null)} />
         ) : (
-          <PageTree categories={categories} pages={pages} currentPage={currentPage} onOpenPage={open} />
+          <PageTree
+            categories={categories}
+            pages={pages}
+            templates={templates}
+            currentPage={currentPage}
+            currentTemplate={currentTemplate}
+            onOpenPage={open}
+            onOpenTemplate={(id) => {
+              setSearch(null);
+              onOpenTemplate(id);
+            }}
+            onNewTemplate={onNewTemplate}
+          />
         )}
       </SidebarContent>
 

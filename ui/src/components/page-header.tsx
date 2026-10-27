@@ -1,6 +1,6 @@
 import { Code2, Eye, LayoutTemplate, Pencil, Save, Trash2 } from 'lucide-react';
 
-import type { Page } from '@/lib/api';
+import type { Page, Template } from '@/lib/api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,7 +29,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 export type ViewMode = 'visual' | 'markdown' | 'preview';
 
 interface Props {
+  /** The open page, or null when a template (or nothing) is open */
   page: Page | null;
+  /** The open template, or null */
+  template: Template | null;
   mode: ViewMode;
   onModeChange: (mode: ViewMode) => void;
   dirty: boolean;
@@ -39,7 +42,22 @@ interface Props {
   onSaveAsTemplate: () => void;
 }
 
-export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, onDelete, onSaveAsTemplate }: Props) {
+export function PageHeader({
+  page,
+  template,
+  mode,
+  onModeChange,
+  dirty,
+  saving,
+  onSave,
+  onDelete,
+  onSaveAsTemplate,
+}: Props) {
+  const doc = page ?? template;
+  const kind = template ? 'template' : 'page';
+  const title = template ? template.name : page?.title;
+  const filePath = template ? `content/_templates/${template.id}.md` : page ? `content/${page.category_id}/${page.slug}.md` : '';
+
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
       <SidebarTrigger className="-ml-1 md:hidden" />
@@ -47,17 +65,22 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
 
       <Breadcrumb className="min-w-0 flex-1">
         <BreadcrumbList className="flex-nowrap gap-1.5 text-[13px] sm:gap-1.5">
-          {page ? (
+          {doc ? (
             <>
               <BreadcrumbItem>
                 <span className="rounded-sm border bg-muted px-1.5 py-px font-mono text-[11px] text-muted-foreground">
-                  {page.category_id}
+                  {template ? 'templates' : page?.category_id}
                 </span>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem className="min-w-0">
                 <BreadcrumbPage className="truncate font-medium">
-                  {page.title}
+                  {title}
+                  {template?.category && (
+                    <span className="ml-1.5 font-normal text-muted-foreground">
+                      · {template.default ? `default for ${template.category}` : template.category}
+                    </span>
+                  )}
                   {dirty && <span className="ml-1.5 text-muted-foreground" title="Unsaved changes">•</span>}
                 </BreadcrumbPage>
               </BreadcrumbItem>
@@ -70,7 +93,7 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
         </BreadcrumbList>
       </Breadcrumb>
 
-      {page && (
+      {doc && (
         <div className="flex items-center gap-2">
           <ToggleGroup
             type="single"
@@ -106,21 +129,23 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
             <TooltipContent>Ctrl+S</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 gap-1.5 px-2.5 text-xs"
-                onClick={onSaveAsTemplate}
-                aria-label="Save as template"
-              >
-                <LayoutTemplate className="size-3.5" />
-                <span className="hidden lg:inline">Template</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Save this page as a template</TooltipContent>
-          </Tooltip>
+          {page && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 gap-1.5 px-2.5 text-xs"
+                  onClick={onSaveAsTemplate}
+                  aria-label="Save as template"
+                >
+                  <LayoutTemplate className="size-3.5" />
+                  <span className="hidden lg:inline">Template</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save this page as a template</TooltipContent>
+            </Tooltip>
+          )}
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -135,13 +160,10 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete “{page.title}”?</AlertDialogTitle>
+                <AlertDialogTitle>Delete “{title}”?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This removes the page from the wiki and deletes{' '}
-                  <code className="font-mono text-xs">
-                    content/{page.category_id}/{page.slug}.md
-                  </code>
-                  . This cannot be undone.
+                  This removes the {kind} from the wiki and deletes{' '}
+                  <code className="font-mono text-xs">{filePath}</code>. This cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -150,7 +172,7 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
                   onClick={onDelete}
                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                 >
-                  Delete page
+                  Delete {kind}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
