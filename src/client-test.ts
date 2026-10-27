@@ -50,42 +50,42 @@ async function main() {
   console.log();
 
   // Test: Create a page
-  console.log('=== Test: create_page (finance/demo-budget) ===');
+  console.log('=== Test: create_page (companies/demo-budget) ===');
   const created = await client.callTool({
     name: 'create_page',
     arguments: {
-      category: 'finance',
+      category: 'companies',
       slug: 'demo-budget',
       title: 'Demo Budget',
-      content: '# Demo Budget\n\nThis links to [[operations/demo-procurement]] and [[service/demo-onboarding]].',
+      content: '# Demo Budget\n\nThis links to [[accounts/demo-procurement]] and [[services/demo-onboarding]].',
     },
   });
   console.log(getText(created));
   console.log();
 
   // Test: Create another page
-  console.log('=== Test: create_page (operations/demo-procurement) ===');
+  console.log('=== Test: create_page (accounts/demo-procurement) ===');
   const created2 = await client.callTool({
     name: 'create_page',
     arguments: {
-      category: 'operations',
+      category: 'accounts',
       slug: 'demo-procurement',
       title: 'Demo Procurement',
-      content: '# Demo Procurement\n\nSee [[finance/demo-budget]] for budget details.',
+      content: '# Demo Procurement\n\nSee [[companies/demo-budget]] for budget details.',
     },
   });
   console.log(getText(created2));
   console.log();
 
   // Test: Create a third page
-  console.log('=== Test: create_page (service/demo-onboarding) ===');
+  console.log('=== Test: create_page (services/demo-onboarding) ===');
   const created3 = await client.callTool({
     name: 'create_page',
     arguments: {
-      category: 'service',
+      category: 'services',
       slug: 'demo-onboarding',
       title: 'Demo Onboarding',
-      content: '# Demo Onboarding\n\nDepends on [[operations/demo-procurement]] and [[finance/demo-budget]].',
+      content: '# Demo Onboarding\n\nDepends on [[accounts/demo-procurement]] and [[companies/demo-budget]].',
     },
   });
   console.log(getText(created3));
@@ -110,7 +110,7 @@ async function main() {
   console.log('=== Test: get_linked_pages ===');
   const links = await client.callTool({
     name: 'get_linked_pages',
-    arguments: { category: 'finance', slug: 'demo-budget' },
+    arguments: { category: 'companies', slug: 'demo-budget' },
   });
   console.log(getText(links));
   console.log();
@@ -125,20 +125,20 @@ async function main() {
   console.log('=== Test: get_page ===');
   const page = await client.callTool({
     name: 'get_page',
-    arguments: { category: 'operations', slug: 'demo-procurement' },
+    arguments: { category: 'accounts', slug: 'demo-procurement' },
   });
   console.log(getText(page));
   console.log();
 
   // Test: Templates (create → list → create a page from it → delete)
-  console.log('=== Test: create_template (demo-report, default for finance) ===');
+  console.log('=== Test: create_template (demo-report, default for companies) ===');
   const tpl = await client.callTool({
     name: 'create_template',
     arguments: {
       id: 'demo-report',
       name: 'Demo report',
       description: 'Created by the MCP client test',
-      category: 'finance',
+      category: 'companies',
       default: true,
       body: '# {{title}}\n\n- Category: {{category}}\n- Date: {{date}}\n\n## Summary\n\n## Figures\n',
     },
@@ -153,10 +153,10 @@ async function main() {
   if (!templateIds.includes('demo-report')) throw new Error('demo-report missing from list_templates');
   console.log();
 
-  console.log('=== Test: create_page from template (finance/demo-report-page) ===');
+  console.log('=== Test: create_page from template (companies/demo-report-page) ===');
   const fromTpl = await client.callTool({
     name: 'create_page',
-    arguments: { category: 'finance', slug: 'demo-report-page', title: 'Demo Report Page', template: 'demo-report' },
+    arguments: { category: 'companies', slug: 'demo-report-page', title: 'Demo Report Page', template: 'demo-report' },
   });
   const fromTplText = getText(fromTpl);
   console.log(fromTplText.split('\n').slice(0, 2).join('\n'));
@@ -168,7 +168,7 @@ async function main() {
 
   console.log('=== Test: delete_template / delete_page (cleanup) ===');
   console.log(getText(await client.callTool({ name: 'delete_template', arguments: { id: 'demo-report' } })));
-  console.log(getText(await client.callTool({ name: 'delete_page', arguments: { category: 'finance', slug: 'demo-report-page' } })));
+  console.log(getText(await client.callTool({ name: 'delete_page', arguments: { category: 'companies', slug: 'demo-report-page' } })));
   console.log();
 
   // Test: List resources

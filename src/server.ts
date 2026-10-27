@@ -36,6 +36,17 @@ fs.mkdirSync(path.dirname(DATABASE_PATH), { recursive: true });
 templates.seedDefaultTemplates(); // content/_templates on first run only
 
 /**
+ * Delete a category from the database, its pages from the search index and
+ * its folder from disk. Returns the number of pages removed.
+ */
+async function removeCategory(id: string, force: boolean): Promise<number> {
+  const { pages } = db.deleteCategory(id, force);
+  for (const page of pages) await search.deletePage(page.id);
+  files.deleteCategoryDir(id);
+  return pages.length;
+}
+
+/**
  * Body for a new page: explicit content, else the named template, else the
  * category's default template. Returns an error message when nothing applies.
  */
@@ -99,12 +110,37 @@ const tools = [
     },
   },
   {
+    name: 'update_category',
+    description: 'Rename a category (folder): change its display name and/or description. The id (folder name) and its pages are unchanged.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Category ID' },
+        name: { type: 'string', description: 'New display name' },
+        description: { type: 'string', description: 'New description' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'delete_category',
+    description: 'Delete a category (folder). Refused when it still has pages unless "force" is true, which deletes every page in it as well. This cannot be undone.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Category ID' },
+        force: { type: 'boolean', description: 'Also delete all pages in the category (default false)' },
+      },
+      required: ['id'],
+    },
+  },
+  {
     name: 'create_page',
     description: 'Create a new page (leaf) in a category. Call list_templates first: if the category has a default template, follow its structure so pages of the same kind look alike (or pass "template" to start from it). Use wiki-style links like [[slug]] or [[category/slug]] to link to other pages.',
     inputSchema: {
       type: 'object',
       properties: {
-        category: { type: 'string', description: 'Category ID (e.g., finance, operations, service, customers, or any custom category)' },
+        category: { type: 'string', description: 'Category ID (e.g., companies, contacts, accounts, services, or any custom category)' },
         slug: { type: 'string', description: 'URL-friendly identifier (e.g., "q4-budget")' },
         title: { type: 'string', description: 'Page title' },
         content: { type: 'string', description: 'Markdown content. Use [[slug]] or [[category/slug]] to link to other pages. Optional when "template" is given or the category has a default template.' },
@@ -224,7 +260,7 @@ const tools = [
       type: 'object',
       properties: {
         id: { type: 'string', description: 'Template ID: lowercase letters, numbers, hyphens (e.g., "customer-profile")' },
-        name: { type: 'string', description: 'Display name (e.g., "Customer profile")' },
+        name: { type: 'string', description: 'Display name (e.g., "Company profile")' },
         body: { type: 'string', description: 'Markdown body, e.g. "# {{title}}\\n\\n## Overview\\n..."' },
         description: { type: 'string', description: 'What the template is for (optional)' },
         category: { type: 'string', description: 'Category ID this template belongs to (optional; omit for a general-purpose template)' },
@@ -291,6 +327,28 @@ async function handleToolCall(name: string, args: any): Promise<any> {
           text: `✅ Category created: ${id} (${name})\n📁 Folder: content/${id}/\n\n${JSON.stringify(category, null, 2)}`,
         }],
       };
+    }
+
+    case 'update_category': {
+      const { id, name, description } = args;
+      const category = db.updateCategory(id, { name, description });
+      if (!category) {
+        return { content: [{ type: 'text', text: `❌ Category "${id}" not found` }], isError: true };
+      }
+      return { content: [{ type: 'text', text: `✅ Category updated: ${id} (${category.name})\n\n${JSON.stringify(category, null, 2)}` }] };
+    }
+
+    case 'delete_category': {
+      const { id, force } = args;
+      if (!db.getCategory(id)) {
+        return { content: [{ type: 'text', text: `❌ Category "${id}" not found` }], isError: true };
+      }
+      try {
+        const removed = await removeCategory(id, force === true);
+        return { content: [{ type: 'text', text: `✅ Category deleted: ${id} (${removed} page${removed === 1 ? '' : 's'} removed)\n📁 Folder content/${id}/ removed` }] };
+      } catch (error) {
+        return { content: [{ type: 'text', text: `❌ ${error instanceof Error ? error.message : String(error)}` }], isError: true };
+      }
     }
 
     case 'create_page': {
@@ -609,16 +667,29 @@ function createHttpServer() {
     }
   });
 
-  // Delete a category (only if empty)
-  app.delete('/api/categories/:id', (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = db.deleteCategory(id);
-      res.json({ deleted });
-    } catch (error) {
-      res.status(400).json({ error: String(error) });
+  // Rename a category (name / description; the id never changes)
+  app.put('/api/categories/:id', (req, res) => {
+    const { name, description } = req.body ?? {};
+    if (name !== undefined && (typeof name !== 'string' || !name.trim())) {
+      return res.status(400).json({ error: 'name must be a non-empty string' });
     }
+    const category = db.updateCategory(req.params.id, { name, description });
+    if (!category) return res.status(404).json({ error: `Category "${req.params.id}" not found` });
+    res.json(category);
   });
+
+  // Delete a category. Empty only, unless ?force=true (deletes its pages too)
+  app.delete('/api/categories/:id', wrap(async (req, res) => {
+    const { id } = req.params;
+    if (!db.getCategory(id)) return res.status(404).json({ error: `Category "${id}" not found` });
+    const force = req.query.force === 'true' || req.body?.force === true;
+    try {
+      const removed = await removeCategory(id, force);
+      res.json({ deleted: true, pagesRemoved: removed });
+    } catch (error) {
+      res.status(409).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  }));
 
   // ---- Templates (content/_templates/*.md) ----
 

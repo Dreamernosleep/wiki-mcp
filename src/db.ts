@@ -136,10 +136,10 @@ function seedCategories(database: DatabaseSync): void {
     INSERT OR IGNORE INTO categories (id, name, description, sort_order) VALUES (?, ?, ?, ?)
   `);
 
-  stmt.run('finance', 'Finance', 'Budgets, expenses, revenue, tax, accounting', 1);
-  stmt.run('operations', 'Operations', 'Processes, procurement, logistics, supply chain', 2);
-  stmt.run('service', 'Service', 'Customer support, SLAs, onboarding, success', 3);
-  stmt.run('customers', 'Customers', 'Customer accounts, contacts, history', 4);
+  stmt.run('companies', 'Companies', 'Client organizations: who they are and what we do for them', 1);
+  stmt.run('contacts', 'Contacts', 'People at client companies', 2);
+  stmt.run('accounts', 'Accounts', 'Engagements with a company: status, services, timeline', 3);
+  stmt.run('services', 'Services', 'The service catalog: what is included and how it is delivered', 4);
 }
 
 // ==================== CATEGORY OPERATIONS ====================
@@ -166,15 +166,31 @@ export function getCategory(id: string): Category | undefined {
   return database.prepare('SELECT * FROM categories WHERE id = ?').get(id) as unknown as Category | undefined;
 }
 
-export function deleteCategory(id: string): boolean {
+/** Rename a category (display name and/or description). The id (folder name) never changes. */
+export function updateCategory(id: string, changes: { name?: string; description?: string }): Category | undefined {
   const database = getDb();
-  // Don't delete if there are pages in this category
-  const pageCount = database.prepare('SELECT COUNT(*) as count FROM pages WHERE category_id = ?').get(id) as { count: number };
-  if (pageCount.count > 0) {
-    throw new Error(`Cannot delete category "${id}": it contains ${pageCount.count} page(s)`);
+  const existing = getCategory(id);
+  if (!existing) return undefined;
+  const name = changes.name !== undefined ? changes.name.trim() || existing.name : existing.name;
+  const description = changes.description !== undefined ? changes.description.trim() : existing.description;
+  database.prepare('UPDATE categories SET name = ?, description = ? WHERE id = ?').run(name, description, id);
+  return getCategory(id);
+}
+
+/**
+ * Delete a category. A category with pages is refused unless `force` is set,
+ * in which case every page in it is deleted too (links cascade). Returns the
+ * pages that were removed so the caller can clean up files and the search index.
+ */
+export function deleteCategory(id: string, force = false): { deleted: boolean; pages: Page[] } {
+  const database = getDb();
+  const pages = database.prepare('SELECT * FROM pages WHERE category_id = ?').all(id) as unknown as Page[];
+  if (pages.length > 0 && !force) {
+    throw new Error(`Cannot delete category "${id}": it contains ${pages.length} page(s). Pass force to delete them too.`);
   }
+  database.prepare('DELETE FROM pages WHERE category_id = ?').run(id);
   const result = database.prepare('DELETE FROM categories WHERE id = ?').run(id);
-  return result.changes > 0;
+  return { deleted: result.changes > 0, pages };
 }
 
 // ==================== PAGE OPERATIONS ====================

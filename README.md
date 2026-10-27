@@ -20,7 +20,7 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 | 🔍 **Smart Search** | Typo-tolerant search with [Meilisearch](https://www.meilisearch.com/) (fallback: SQLite FTS5) |
 | 🌐 **Web UI** | Clean black-and-white UI built with React + [shadcn/ui](https://ui.shadcn.com) — visual (WYSIWYG) editor that saves plain Markdown, Markdown source mode with live preview, light/dark |
 | 🔗 **Wiki Links** | `[[page-slug]]` or `[[category/page-slug]]` with autocomplete while typing |
-| 📂 **Dynamic Categories** | Create custom folders (categories) on the fly — not just finance/ops/service |
+| 📂 **Dynamic Categories** | Create custom folders (categories) on the fly — the install starts you with companies/contacts/accounts/services |
 | 🐳 **Docker Ready** | One command to run everything: `docker compose up -d` |
 | 👀 **File Watcher** | Edit files in VS Code/Obsidian — changes auto-sync to search index |
 | 📊 **Graph View** | See how pages connect with a full link graph |
@@ -135,12 +135,14 @@ MCP_TRANSPORT=stdio node dist/server.js
 }
 ```
 
-## 🛠️ MCP Tools (16)
+## 🛠️ MCP Tools (18)
 
 | Tool | Description |
 |------|-------------|
 | `list_categories` | List all wiki categories |
 | `create_category` | Create a new category (folder) |
+| `update_category` | Rename a category (display name, description) |
+| `delete_category` | Delete a category; with `force`, its pages too |
 | `create_page` | Create a new page (from markdown, or from a template) |
 | `get_page` | Get a page by category/slug |
 | `update_page` | Update a page's content |
@@ -162,8 +164,9 @@ MCP_TRANSPORT=stdio node dist/server.js
 |--------|----------|-------------|
 | `GET` | `/api/categories` | List categories |
 | `POST` | `/api/categories` | Create category |
-| `DELETE` | `/api/categories/:id` | Delete empty category |
-| `GET` | `/api/pages` | List pages (`?category=finance`) |
+| `PUT` | `/api/categories/:id` | Rename a category (`name`, `description`) |
+| `DELETE` | `/api/categories/:id` | Delete a category (`?force=true` deletes its pages too) |
+| `GET` | `/api/pages` | List pages (`?category=companies`) |
 | `GET` | `/api/pages/:category/:slug` | Get a page |
 | `POST` | `/api/pages` | Create a page (`content`, or `template` id) |
 | `PUT` | `/api/pages/:category/:slug` | Update a page |
@@ -206,10 +209,10 @@ wiki-mcp/
 │   └── nginx.conf.template # Serves the app and proxies /api to the API
 ├── content/                # Your wiki (markdown files; gitignored, created on first start)
 │   ├── _templates/         # Page templates (see below)
-│   ├── finance/
-│   ├── operations/
-│   ├── service/
-│   ├── customers/
+│   ├── companies/          # One page per client organization
+│   ├── contacts/           # People at those companies
+│   ├── accounts/           # Engagements: status, services, timeline
+│   ├── services/           # Your service catalog
 │   └── engineering/        # Custom categories!
 ├── data/                   # SQLite database
 ├── docker-compose.yml      # One-command setup
@@ -224,43 +227,44 @@ Pages are stored as markdown files with YAML frontmatter:
 ```markdown
 ---
 id: abc123-uuid
-category: finance
-slug: q4-budget
-title: Q4 Budget Planning
+category: companies
+slug: acme
+title: Acme Inc
 created: 2026-10-27
 updated: 2026-10-27
 created_by: agent
 ---
 
-# Q4 Budget Planning
+# Acme Inc
 
-The Q4 budget depends on [[operations/procurement]] timelines.
+## Contacts
+- [[contacts/jane-doe]] — CEO
 
-## Key Figures
-- Revenue target: $2.5M
+## Accounts
+- [[accounts/acme-website-redesign]] — active
 ```
 
 ## 📋 Page Templates
 
-Templates keep pages of the same kind (a customer, a procedure, meeting notes) in the same shape, whether a person creates them in the web UI or an agent creates them over MCP. A template is a markdown file in `content/_templates/`:
+Templates keep pages of the same kind (a company, a contact, meeting notes) in the same shape, whether a person creates them in the web UI or an agent creates them over MCP. A template is a markdown file in `content/_templates/`:
 
 ```markdown
 ---
-name: Customer profile
-description: One page per customer account
-category: customers      # optional: the category this template belongs to
+name: Company profile
+description: One page per client organization
+category: companies      # optional: the category this template belongs to
 default: true            # optional: preselected for new pages in that category
 ---
 # {{title}}
 
 ## Overview
+- Domain:
 - Industry:
-- Website:
 ```
 
 - `{{title}}`, `{{category}}` and `{{date}}` are filled in when a page is created from the template.
 - A template with a `category` is offered for that category; without one it is general purpose. Only one template per category can be `default`; setting a new default clears the previous one.
-- The install ships four starters: **Customer profile** (default for `customers`), **Procedure** (default for `operations`), **Meeting notes** and **Decision record**. They are written on first start; edit or delete them freely.
+- The install ships a CRM-style starter kit: four categories (**Companies**, **Contacts**, **Accounts**, **Services**), each with a default template (**Company profile**, **Contact card**, **Account**, **Service**) that links records together with `[[category/slug]]`, plus three general templates (**Procedure**, **Meeting notes**, **Decision record**). Categories and templates are written on first start only; rename, edit or delete them freely.
 - In the web UI, the New page dialog has a Template picker, and any open page can be saved as a template (the page heading becomes `{{title}}`).
 - Agents: `list_templates` shows what exists, `create_page` accepts a `template` id (and falls back to the category default when `content` is omitted), and `create_template` / `update_template` / `delete_template` manage them.
 
@@ -269,8 +273,8 @@ default: true            # optional: preselected for new pages in that category
 Link pages with `[[slug]]` or `[[category/slug]]`:
 
 ```markdown
-See [[operations/procurement]] for details.
-Or use full path: [[finance/expense-policy]]
+See [[acme]] for details.
+Or use full path: [[companies/acme]]
 ```
 
 ## 🎨 Theming the Web UI

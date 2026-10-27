@@ -182,37 +182,102 @@ export function deleteTemplate(id: string): boolean {
 
 export const DEFAULT_TEMPLATES: Template[] = [
   {
-    id: 'customer-profile',
-    name: 'Customer profile',
-    description: 'One page per customer account',
-    category: 'customers',
+    id: 'company-profile',
+    name: 'Company profile',
+    description: 'One page per client organization',
+    category: 'companies',
     default: true,
     body: `# {{title}}
 
 ## Overview
+- Domain:
 - Industry:
-- Website:
-- Customer since:
+- City / region:
+- Client since:
 
 ## Contacts
-| Name | Role | Email |
-| --- | --- | --- |
-|  |  |  |
+- [[contacts/contact-slug]] — role
 
-## Status
-- Stage:
-- Owner:
-- Next step:
+## Accounts
+- [[accounts/account-slug]] — status
 
 ## Notes
+Context, history, preferences, things to remember.
+`,
+  },
+  {
+    id: 'contact-card',
+    name: 'Contact card',
+    description: 'One page per person at a client company',
+    category: 'contacts',
+    default: true,
+    body: `# {{title}}
+
+- Company: [[companies/company-slug]]
+- Role:
+- Email:
+- Phone:
+- Preferred channel:
+
+## Notes
+How they like to work, decisions they own, past conversations.
+`,
+  },
+  {
+    id: 'account',
+    name: 'Account',
+    description: 'One page per engagement with a company',
+    category: 'accounts',
+    default: true,
+    body: `# {{title}}
+
+- Company: [[companies/company-slug]]
+- Status: prospect / active / closed
+- Owner:
+- Health (1-5):
+- Started: {{date}}
+
+## Services
+- [[services/service-slug]] — recurring / one-off, price
+
+## Scope
+What this account covers and what it does not.
+
+## Timeline
+- {{date}} — account opened
+
+## Notes
+`,
+  },
+  {
+    id: 'service',
+    name: 'Service',
+    description: 'One page per service in the catalog',
+    category: 'services',
+    default: true,
+    body: `# {{title}}
+
+- Kind: recurring / one-off
+- Default price:
+- Currency: CAD
+
+## What is included
+- Deliverable one
+- Deliverable two
+
+## How it is delivered
+Steps, tools and who does what.
+
+## Accounts using this service
+- [[accounts/account-slug]]
 `,
   },
   {
     id: 'procedure',
     name: 'Procedure',
     description: 'Step-by-step instructions for a recurring task',
-    category: 'operations',
-    default: true,
+    category: null,
+    default: false,
     body: `# {{title}}
 
 ## Purpose

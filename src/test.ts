@@ -12,7 +12,7 @@ process.env.DATABASE_PATH = path.join(testDir, 'test.db');
 process.env.CONTENT_PATH = path.join(testDir, 'content');
 
 // Clean up
-for (const dir of ['finance', 'operations', 'service', 'customers']) {
+for (const dir of ['finance', 'operations', 'service']) {
   fs.mkdirSync(path.join(process.env.CONTENT_PATH, dir), { recursive: true });
 }
 
@@ -31,6 +31,10 @@ async function main() {
 
   // 1. List categories
   console.log('=== 1. List Categories ===');
+  // The test pages use their own categories (the install seeds companies/contacts/accounts/services)
+  for (const [id, name] of [['finance', 'Finance'], ['operations', 'Operations'], ['service', 'Service']]) {
+    if (!db.getCategory(id)) db.createCategory(id, name, '');
+  }
   const categories = db.listCategories();
   console.log(categories.map(c => `  ${c.id}: ${c.name}`).join('\n'));
   console.log();
@@ -156,12 +160,13 @@ Updated with new info. See [[service/support-sla]].`
   check('seeded on first run', templates.seedDefaultTemplates() === true);
   check('not re-seeded when folder exists', templates.seedDefaultTemplates() === false);
   const starters = templates.listTemplates();
-  check(`4 starter templates (found ${starters.length})`, starters.length === 4);
-  check('customers default is customer-profile', templates.getDefaultTemplate('customers')?.id === 'customer-profile');
+  check(`7 starter templates (found ${starters.length})`, starters.length === 7);
+  check('companies default is company-profile', templates.getDefaultTemplate('companies')?.id === 'company-profile');
+  check('contacts/accounts/services have defaults', ['contacts', 'accounts', 'services'].every(c => templates.getDefaultTemplate(c)?.default === true));
   check('finance has no default', templates.getDefaultTemplate('finance') === null);
 
-  const rendered = templates.renderTemplate('# {{title}}\n{{ category }} {{date}}', { title: 'Acme', category: 'customers', date: '2026-01-02' });
-  check('placeholders rendered', rendered === '# Acme\ncustomers 2026-01-02');
+  const rendered = templates.renderTemplate('# {{title}}\n{{ category }} {{date}}', { title: 'Acme', category: 'companies', date: '2026-01-02' });
+  check('placeholders rendered', rendered === '# Acme\ncompanies 2026-01-02');
 
   check('template files are not pages', files.listAllPageFiles().every(f => !f.includes('_templates')));
   check('parsePath ignores _templates', files.parsePath(path.join(process.env.CONTENT_PATH!, '_templates', 'x.md')) === null);
@@ -186,6 +191,30 @@ Updated with new info. See [[service/support-sla]].`
     check('default without category refused', e instanceof templates.TemplateError && e.status === 400);
   }
   check('deleteTemplate', templates.deleteTemplate('finance-memo') && templates.getTemplate('finance-memo') === null);
+  console.log();
+
+  // 11. Categories: rename, delete (empty / force)
+  console.log('=== 11. Categories ===');
+  const renamed = db.updateCategory('finance', { name: 'Money', description: 'Renamed' });
+  check('updateCategory renames', renamed?.name === 'Money' && renamed.description === 'Renamed');
+  check('updateCategory keeps id', db.getCategory('finance')?.id === 'finance');
+  check('updateCategory unknown id', db.updateCategory('nope', { name: 'x' }) === undefined);
+  try {
+    db.deleteCategory('finance');
+    check('delete refused while pages exist', false);
+  } catch {
+    check('delete refused while pages exist', db.getCategory('finance') !== undefined);
+  }
+  const forced = db.deleteCategory('finance', true);
+  check('force delete removes the category and its pages', forced.deleted && forced.pages.length === 2 && db.listPages('finance').length === 0);
+  check('links of deleted pages are gone', db.getLinkedPages('operations', 'procurement').incoming.every(l => l.page.category_id !== 'finance'));
+  check('deleteCategoryDir removes the folder', files.deleteCategoryDir('finance') && !fs.existsSync(path.join(process.env.CONTENT_PATH!, 'finance')));
+  try {
+    files.deleteCategoryDir('_templates');
+    check('deleteCategoryDir refuses reserved folders', false);
+  } catch {
+    check('deleteCategoryDir refuses reserved folders', fs.existsSync(templates.getTemplatesDir()));
+  }
   console.log();
 
   // Cleanup (best effort)
