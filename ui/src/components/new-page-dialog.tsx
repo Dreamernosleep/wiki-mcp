@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
-import type { Category } from '@/lib/api';
+import { api, type Category, type Template } from '@/lib/api';
 import { SLUG_PATTERN, SLUG_RULE, slugify } from '@/lib/slug';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,11 +17,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+const BLANK = '__blank__';
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   categories: Category[];
-  onCreate: (input: { category: string; slug: string; title: string }) => Promise<void>;
+  /** `template` is a template id; undefined = blank page */
+  onCreate: (input: { category: string; slug: string; title: string; template?: string }) => Promise<void>;
 }
 
 export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Props) {
@@ -30,6 +33,8 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
   const [slug, setSlug] = useState('');
   const [slugEdited, setSlugEdited] = useState(false); // user typed a custom slug
   const [slugEditing, setSlugEditing] = useState(false); // slug input is visible
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [template, setTemplate] = useState(BLANK);
   const [submitting, setSubmitting] = useState(false);
 
   // Reset the form each time the dialog opens; default to the first category
@@ -40,8 +45,28 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
       setSlug('');
       setSlugEdited(false);
       setSlugEditing(false);
+      setTemplate(BLANK);
+      api
+        .listTemplates()
+        .then(setTemplates)
+        .catch((err) => {
+          setTemplates([]);
+          toast.error(`Could not load templates: ${err instanceof Error ? err.message : String(err)}`);
+        });
     }
   }, [open, categories]);
+
+  // Templates offered for the chosen category: general ones first, then the category's own
+  const offered = [
+    ...templates.filter((t) => !t.category),
+    ...templates.filter((t) => t.category === category),
+  ];
+
+  // Preselect the category's default template (or blank) whenever the category changes
+  useEffect(() => {
+    const def = templates.find((t) => t.category === category && t.default);
+    setTemplate(def ? def.id : BLANK);
+  }, [category, templates]);
 
   const onTitleChange = (value: string) => {
     setTitle(value);
@@ -64,7 +89,7 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
     if (!slug) return toast.error('The title must contain at least one letter or number');
     setSubmitting(true);
     try {
-      await onCreate({ category, slug, title });
+      await onCreate({ category, slug, title, template: template === BLANK ? undefined : template });
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -97,6 +122,28 @@ export function NewPageDialog({ open, onOpenChange, categories, onCreate }: Prop
               </SelectContent>
             </Select>
           </div>
+
+          {offered.length > 0 && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="new-page-template">Template</Label>
+              <Select value={template} onValueChange={setTemplate}>
+                <SelectTrigger id="new-page-template" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={BLANK}>Blank page</SelectItem>
+                  {offered.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                      {t.description && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">— {t.description}</span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid gap-1.5">
             <Label htmlFor="new-page-title">Title</Label>

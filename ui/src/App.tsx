@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { toast } from 'sonner';
 
-import { api, type Category, type LinkedPages as LinkedPagesData, type Page } from '@/lib/api';
+import { api, type Category, type LinkedPages as LinkedPagesData, type Page, type TemplateInput } from '@/lib/api';
 import { extractTitle, stripFrontmatter } from '@/lib/markdown';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -13,6 +13,7 @@ import { LinkedPages } from '@/components/linked-pages';
 import { Welcome } from '@/components/welcome';
 import { NewPageDialog } from '@/components/new-page-dialog';
 import { NewCategoryDialog } from '@/components/new-category-dialog';
+import { SaveTemplateDialog } from '@/components/save-template-dialog';
 
 export default function App() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -23,6 +24,7 @@ export default function App() {
   const [links, setLinks] = useState<LinkedPagesData | null>(null);
   const [newPageOpen, setNewPageOpen] = useState(false);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   // Set when a page was just created so the editor can place the cursor ready to type
   const [freshPage, setFreshPage] = useState(false);
@@ -104,9 +106,10 @@ export default function App() {
   }, [currentPage, closePage, loadPages]);
 
   const createPage = useCallback(
-    async (input: { category: string; slug: string; title: string }) => {
-      // Start the body with the title as a heading; the rest is written in the visual editor
-      await api.createPage({ ...input, content: `# ${input.title}\n\n` });
+    async (input: { category: string; slug: string; title: string; template?: string }) => {
+      const { template, ...page } = input;
+      // From a template, or a blank body with the title as heading; the rest is written in the visual editor
+      await api.createPage(template ? { ...page, template } : { ...page, content: `# ${input.title}\n\n` });
       toast.success('Page created');
       await loadPages();
       setMode('visual');
@@ -114,6 +117,11 @@ export default function App() {
     },
     [loadPages, openPage]
   );
+
+  const createTemplate = useCallback(async (input: TemplateInput & { id: string }) => {
+    const template = await api.createTemplate(input);
+    toast.success(`Template "${template.name}" saved`);
+  }, []);
 
   const createCategory = useCallback(
     async (input: { id: string; name: string; description: string }) => {
@@ -166,6 +174,7 @@ export default function App() {
           saving={saving}
           onSave={savePage}
           onDelete={deletePage}
+          onSaveAsTemplate={() => setSaveTemplateOpen(true)}
         />
 
         {currentPage ? (
@@ -205,6 +214,16 @@ export default function App() {
 
       <NewPageDialog open={newPageOpen} onOpenChange={setNewPageOpen} categories={categories} onCreate={createPage} />
       <NewCategoryDialog open={newCategoryOpen} onOpenChange={setNewCategoryOpen} onCreate={createCategory} />
+      {currentPage && (
+        <SaveTemplateDialog
+          open={saveTemplateOpen}
+          onOpenChange={setSaveTemplateOpen}
+          page={currentPage}
+          body={editorText}
+          categories={categories}
+          onCreate={createTemplate}
+        />
+      )}
     </SidebarProvider>
   );
 }

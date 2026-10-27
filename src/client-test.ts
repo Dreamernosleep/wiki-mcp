@@ -130,6 +130,47 @@ async function main() {
   console.log(getText(page));
   console.log();
 
+  // Test: Templates (create → list → create a page from it → delete)
+  console.log('=== Test: create_template (demo-report, default for finance) ===');
+  const tpl = await client.callTool({
+    name: 'create_template',
+    arguments: {
+      id: 'demo-report',
+      name: 'Demo report',
+      description: 'Created by the MCP client test',
+      category: 'finance',
+      default: true,
+      body: '# {{title}}\n\n- Category: {{category}}\n- Date: {{date}}\n\n## Summary\n\n## Figures\n',
+    },
+  });
+  console.log(getText(tpl));
+  console.log();
+
+  console.log('=== Test: list_templates ===');
+  const tpls = await client.callTool({ name: 'list_templates', arguments: {} });
+  const templateIds = (JSON.parse(getText(tpls)) as Array<{ id: string }>).map(t => t.id);
+  console.log(`  ${templateIds.length} templates: ${templateIds.join(', ')}`);
+  if (!templateIds.includes('demo-report')) throw new Error('demo-report missing from list_templates');
+  console.log();
+
+  console.log('=== Test: create_page from template (finance/demo-report-page) ===');
+  const fromTpl = await client.callTool({
+    name: 'create_page',
+    arguments: { category: 'finance', slug: 'demo-report-page', title: 'Demo Report Page', template: 'demo-report' },
+  });
+  const fromTplText = getText(fromTpl);
+  console.log(fromTplText.split('\n').slice(0, 2).join('\n'));
+  if (!fromTplText.includes('# Demo Report Page') || fromTplText.includes('{{title}}')) {
+    throw new Error('Template placeholders were not rendered');
+  }
+  console.log('  ✅ placeholders rendered');
+  console.log();
+
+  console.log('=== Test: delete_template / delete_page (cleanup) ===');
+  console.log(getText(await client.callTool({ name: 'delete_template', arguments: { id: 'demo-report' } })));
+  console.log(getText(await client.callTool({ name: 'delete_page', arguments: { category: 'finance', slug: 'demo-report-page' } })));
+  console.log();
+
   // Test: List resources
   console.log('=== Test: list_resources ===');
   const resources = await client.listResources();

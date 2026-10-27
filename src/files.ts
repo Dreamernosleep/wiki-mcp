@@ -20,6 +20,17 @@ export interface ParsedPage {
 
 const CONTENT_DIR = process.env.CONTENT_PATH || path.join(process.cwd(), 'content');
 
+// Category IDs, page slugs and template IDs become folder/file names, so they
+// share one strict pattern. Folders starting with "_" (e.g. _templates) are
+// reserved for non-page data and can never be categories.
+export const ID_PATTERN = /^[a-z0-9-]+$/;
+export const ID_RULE = 'lowercase letters, numbers, and hyphens only';
+
+/** Folders under content/ whose files are not wiki pages (e.g. _templates) */
+export function isReservedDir(name: string): boolean {
+  return name.startsWith('_');
+}
+
 /**
  * Get the file path for a page
  */
@@ -126,7 +137,7 @@ export function listAllPageFiles(): string[] {
   const categories = fs.readdirSync(CONTENT_DIR, { withFileTypes: true });
 
   for (const cat of categories) {
-    if (!cat.isDirectory()) continue;
+    if (!cat.isDirectory() || isReservedDir(cat.name)) continue;
 
     const catDir = path.join(CONTENT_DIR, cat.name);
     const pages = fs.readdirSync(catDir, { withFileTypes: true });
@@ -195,7 +206,7 @@ export function getRelativePath(filePath: string): string {
 export function parsePath(filePath: string): { category: string; slug: string } | null {
   const relative = getRelativePath(filePath);
   const parts = relative.split('/');
-  if (parts.length !== 2 || !parts[1].endsWith('.md')) {
+  if (parts.length !== 2 || !parts[1].endsWith('.md') || isReservedDir(parts[0])) {
     return null;
   }
   return {

@@ -132,6 +132,7 @@ function seedCategories(database: DatabaseSync): void {
   stmt.run('finance', 'Finance', 'Budgets, expenses, revenue, tax, accounting', 1);
   stmt.run('operations', 'Operations', 'Processes, procurement, logistics, supply chain', 2);
   stmt.run('service', 'Service', 'Customer support, SLAs, onboarding, success', 3);
+  stmt.run('customers', 'Customers', 'Customer accounts, contacts, history', 4);
 }
 
 // ==================== CATEGORY OPERATIONS ====================

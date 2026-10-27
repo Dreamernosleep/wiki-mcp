@@ -12,7 +12,7 @@ process.env.DATABASE_PATH = path.join(testDir, 'test.db');
 process.env.CONTENT_PATH = path.join(testDir, 'content');
 
 // Clean up
-for (const dir of ['finance', 'operations', 'service']) {
+for (const dir of ['finance', 'operations', 'service', 'customers']) {
   fs.mkdirSync(path.join(process.env.CONTENT_PATH, dir), { recursive: true });
 }
 
@@ -145,6 +145,49 @@ Updated with new info. See [[service/support-sla]].`
   console.log(`  DB deleted: ${deleted ? '✅' : '❌'}, File deleted: ${!fileExists ? '✅' : '❌'}`);
   console.log();
 
+  // 10. Templates
+  console.log('=== 10. Templates ===');
+  const templates = await import('./templates.js');
+  const check = (label: string, ok: boolean) => {
+    console.log(`  ${ok ? '✅' : '❌'} ${label}`);
+    if (!ok) failures++;
+  };
+
+  check('seeded on first run', templates.seedDefaultTemplates() === true);
+  check('not re-seeded when folder exists', templates.seedDefaultTemplates() === false);
+  const starters = templates.listTemplates();
+  check(`4 starter templates (found ${starters.length})`, starters.length === 4);
+  check('customers default is customer-profile', templates.getDefaultTemplate('customers')?.id === 'customer-profile');
+  check('finance has no default', templates.getDefaultTemplate('finance') === null);
+
+  const rendered = templates.renderTemplate('# {{title}}\n{{ category }} {{date}}', { title: 'Acme', category: 'customers', date: '2026-01-02' });
+  check('placeholders rendered', rendered === '# Acme\ncustomers 2026-01-02');
+
+  check('template files are not pages', files.listAllPageFiles().every(f => !f.includes('_templates')));
+  check('parsePath ignores _templates', files.parsePath(path.join(process.env.CONTENT_PATH!, '_templates', 'x.md')) === null);
+
+  const created = templates.createTemplate('finance-report', { name: 'Finance report', category: 'finance', default: true }, '---\ntitle: junk\n---\n# {{title}}\n\n## Numbers\n');
+  check('createTemplate strips frontmatter from body', created.body.startsWith('# {{title}}'));
+  check('finance default now finance-report', templates.getDefaultTemplate('finance')?.id === 'finance-report');
+  try {
+    templates.createTemplate('finance-report', { name: 'Dup' }, '# x');
+    check('duplicate id refused', false);
+  } catch (e) {
+    check('duplicate id refused', e instanceof templates.TemplateError && e.status === 409);
+  }
+  templates.createTemplate('finance-memo', { name: 'Finance memo', category: 'finance', default: true }, '# {{title}}\n');
+  check('new default clears the previous one', templates.getTemplate('finance-report')?.default === false);
+  const updatedTpl = templates.updateTemplate('finance-memo', { body: '# {{title}}\n\n## Memo\n' });
+  check('updateTemplate changes the body', updatedTpl.body.includes('## Memo') && updatedTpl.default === true);
+  try {
+    templates.createTemplate('bad', { name: 'Bad', default: true }, '# x');
+    check('default without category refused', false);
+  } catch (e) {
+    check('default without category refused', e instanceof templates.TemplateError && e.status === 400);
+  }
+  check('deleteTemplate', templates.deleteTemplate('finance-memo') && templates.getTemplate('finance-memo') === null);
+  console.log();
+
   // Cleanup (best effort)
   console.log('=== Cleanup ===');
   try {
@@ -155,7 +198,16 @@ Updated with new info. See [[service/support-sla]].`
   }
   console.log();
 
+  if (failures > 0) {
+    console.log(`❌ ${failures} check(s) failed`);
+    process.exit(1);
+  }
   console.log('✅ All tests passed!');
 }
 
-main().catch(console.error);
+let failures = 0;
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

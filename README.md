@@ -135,13 +135,13 @@ MCP_TRANSPORT=stdio node dist/server.js
 }
 ```
 
-## 🛠️ MCP Tools (11)
+## 🛠️ MCP Tools (16)
 
 | Tool | Description |
 |------|-------------|
 | `list_categories` | List all wiki categories |
 | `create_category` | Create a new category (folder) |
-| `create_page` | Create a new page with markdown |
+| `create_page` | Create a new page (from markdown, or from a template) |
 | `get_page` | Get a page by category/slug |
 | `update_page` | Update a page's content |
 | `delete_page` | Delete a page |
@@ -150,6 +150,11 @@ MCP_TRANSPORT=stdio node dist/server.js
 | `get_linked_pages` | Get pages linked to/from a page |
 | `get_graph` | Get the full link graph |
 | `sync_files` | Force sync from markdown files |
+| `list_templates` | List page templates |
+| `get_template` | Get a template with its markdown body |
+| `create_template` | Create a reusable page template |
+| `update_template` | Update a template's name, category, default flag or body |
+| `delete_template` | Delete a template |
 
 ## 🌐 REST API
 
@@ -160,7 +165,7 @@ MCP_TRANSPORT=stdio node dist/server.js
 | `DELETE` | `/api/categories/:id` | Delete empty category |
 | `GET` | `/api/pages` | List pages (`?category=finance`) |
 | `GET` | `/api/pages/:category/:slug` | Get a page |
-| `POST` | `/api/pages` | Create a page |
+| `POST` | `/api/pages` | Create a page (`content`, or `template` id) |
 | `PUT` | `/api/pages/:category/:slug` | Update a page |
 | `DELETE` | `/api/pages/:category/:slug` | Delete a page |
 | `GET` | `/api/search?q=...` | Search pages |
@@ -169,6 +174,11 @@ MCP_TRANSPORT=stdio node dist/server.js
 | `GET` | `/api/pages/:cat/:slug/links` | Get linked pages |
 | `POST` | `/api/sync` | Force file sync |
 | `GET` | `/api/raw/:category/:slug` | Get raw markdown |
+| `GET` | `/api/templates` | List page templates |
+| `GET` | `/api/templates/:id` | Get a template |
+| `POST` | `/api/templates` | Create a template |
+| `PUT` | `/api/templates/:id` | Update a template |
+| `DELETE` | `/api/templates/:id` | Delete a template |
 | `GET` | `/health` | Health check |
 
 ## 📁 Project Structure
@@ -195,10 +205,12 @@ wiki-mcp/
 │   ├── Dockerfile          # Builds the bundle, serves it with nginx
 │   └── nginx.conf.template # Serves the app and proxies /api to the API
 ├── content/                # Your wiki (markdown files)
+│   ├── _templates/         # Page templates (see below)
 │   ├── finance/
 │   ├── operations/
 │   ├── service/
-│   └── clients/            # Custom categories!
+│   ├── customers/
+│   └── engineering/        # Custom categories!
 ├── data/                   # SQLite database
 ├── docker-compose.yml      # One-command setup
 ├── Dockerfile              # Wiki API container
@@ -227,6 +239,30 @@ The Q4 budget depends on [[operations/procurement]] timelines.
 ## Key Figures
 - Revenue target: $2.5M
 ```
+
+## 📋 Page Templates
+
+Templates keep pages of the same kind (a customer, a procedure, meeting notes) in the same shape, whether a person creates them in the web UI or an agent creates them over MCP. A template is a markdown file in `content/_templates/`:
+
+```markdown
+---
+name: Customer profile
+description: One page per customer account
+category: customers      # optional: the category this template belongs to
+default: true            # optional: preselected for new pages in that category
+---
+# {{title}}
+
+## Overview
+- Industry:
+- Website:
+```
+
+- `{{title}}`, `{{category}}` and `{{date}}` are filled in when a page is created from the template.
+- A template with a `category` is offered for that category; without one it is general purpose. Only one template per category can be `default`; setting a new default clears the previous one.
+- The install ships four starters: **Customer profile** (default for `customers`), **Procedure** (default for `operations`), **Meeting notes** and **Decision record**. They are written on first start; edit or delete them freely.
+- In the web UI, the New page dialog has a Template picker, and any open page can be saved as a template (the page heading becomes `{{title}}`).
+- Agents: `list_templates` shows what exists, `create_page` accepts a `template` id (and falls back to the category default when `content` is omitted), and `create_template` / `update_template` / `delete_template` manage them.
 
 ## 🔗 Wiki Links
 

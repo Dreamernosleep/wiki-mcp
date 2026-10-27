@@ -3,6 +3,7 @@ import path from 'path';
 import {
   getContentDir,
   getRelativePath,
+  isReservedDir,
   parsePath,
   readPageFile,
   listAllPageFiles,
@@ -159,6 +160,11 @@ export function startWatcher(): FSWatcher {
 
   watcher = chokidar.watch('**/*.md', {
     cwd: contentDir,
+    // Folders starting with "_" (templates) are not pages
+    ignored: (filePath: string) => {
+      const rel = path.isAbsolute(filePath) ? path.relative(contentDir, filePath) : filePath;
+      return rel.split(/[\\/]/).some(isReservedDir);
+    },
     ignoreInitial: true, // Don't fire on startup (fullSync handles that)
     persistent: true,
     awaitWriteFinish: {

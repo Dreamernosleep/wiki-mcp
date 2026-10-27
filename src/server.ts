@@ -20,6 +20,8 @@ import * as db from './db.js';
 import * as files from './files.js';
 import * as search from './search.js';
 import * as watcher from './watcher.js';
+import * as templates from './templates.js';
+import { ID_PATTERN, ID_RULE } from './files.js';
 
 // ==================== CONFIG ====================
 
@@ -28,15 +30,31 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const CONTENT_PATH = process.env.CONTENT_PATH || path.join(process.cwd(), 'content');
 const DATABASE_PATH = process.env.DATABASE_PATH || path.join(process.cwd(), 'data', 'wiki.db');
 
-// Category IDs and page slugs become folder/file names, so they share one strict pattern
-const ID_PATTERN = /^[a-z0-9-]+$/;
-const ID_RULE = 'lowercase letters, numbers, and hyphens only';
-
 // Ensure directories exist
 fs.mkdirSync(CONTENT_PATH, { recursive: true });
 fs.mkdirSync(path.dirname(DATABASE_PATH), { recursive: true });
-for (const cat of ['finance', 'operations', 'service']) {
+for (const cat of ['finance', 'operations', 'service', 'customers']) {
   fs.mkdirSync(path.join(CONTENT_PATH, cat), { recursive: true });
+}
+templates.seedDefaultTemplates(); // content/_templates on first run only
+
+/**
+ * Body for a new page: explicit content, else the named template, else the
+ * category's default template. Returns an error message when nothing applies.
+ */
+function resolvePageContent(
+  args: { content?: string; template?: string; category: string; title: string }
+): { content: string } | { error: string } {
+  if (typeof args.content === 'string' && args.content.length > 0) return { content: args.content };
+  let template: templates.Template | null = null;
+  if (args.template) {
+    template = templates.getTemplate(args.template);
+    if (!template) return { error: `Template "${args.template}" not found. Use list_templates to see available templates.` };
+  } else {
+    template = templates.getDefaultTemplate(args.category);
+    if (!template) return { error: `Missing content: pass content, or a template id (category "${args.category}" has no default template)` };
+  }
+  return { content: templates.renderTemplate(template.body, { title: args.title, category: args.category }) };
 }
 
 // ==================== INITIALIZATION ====================
@@ -80,16 +98,17 @@ const tools = [
   },
   {
     name: 'create_page',
-    description: 'Create a new page (leaf) in a category. Use wiki-style links like [[slug]] or [[category/slug]] to link to other pages.',
+    description: 'Create a new page (leaf) in a category. Call list_templates first: if the category has a default template, follow its structure so pages of the same kind look alike (or pass "template" to start from it). Use wiki-style links like [[slug]] or [[category/slug]] to link to other pages.',
     inputSchema: {
       type: 'object',
       properties: {
-        category: { type: 'string', description: 'Category ID (e.g., finance, operations, service, or any custom category)' },
+        category: { type: 'string', description: 'Category ID (e.g., finance, operations, service, customers, or any custom category)' },
         slug: { type: 'string', description: 'URL-friendly identifier (e.g., "q4-budget")' },
         title: { type: 'string', description: 'Page title' },
-        content: { type: 'string', description: 'Markdown content. Use [[slug]] or [[category/slug]] to link to other pages.' },
+        content: { type: 'string', description: 'Markdown content. Use [[slug]] or [[category/slug]] to link to other pages. Optional when "template" is given or the category has a default template.' },
+        template: { type: 'string', description: 'Template ID to start from (see list_templates). Its {{title}}, {{category}} and {{date}} placeholders are filled in. Ignored when "content" is given.' },
       },
-      required: ['category', 'slug', 'title', 'content'],
+      required: ['category', 'slug', 'title'],
     },
   },
   {
@@ -180,6 +199,65 @@ const tools = [
     description: 'Force a full sync from markdown files to database and search index',
     inputSchema: { type: 'object', properties: {} },
   },
+  {
+    name: 'list_templates',
+    description: 'List page templates (markdown files in content/_templates). A template may belong to a category and be its default: new pages in that category should follow its structure.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_template',
+    description: 'Get a page template by ID, including its markdown body with {{title}}, {{category}} and {{date}} placeholders',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Template ID (file name without .md)' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'create_template',
+    description: 'Create a reusable page template in content/_templates/<id>.md. Put {{title}} in the H1; {{category}} and {{date}} are also filled in when a page is created from it. Set category + default to make it the starting point for every new page in that category (only one default per category).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Template ID: lowercase letters, numbers, hyphens (e.g., "customer-profile")' },
+        name: { type: 'string', description: 'Display name (e.g., "Customer profile")' },
+        body: { type: 'string', description: 'Markdown body, e.g. "# {{title}}\\n\\n## Overview\\n..."' },
+        description: { type: 'string', description: 'What the template is for (optional)' },
+        category: { type: 'string', description: 'Category ID this template belongs to (optional; omit for a general-purpose template)' },
+        default: { type: 'boolean', description: 'Make it the default template for that category (requires category)' },
+      },
+      required: ['id', 'name', 'body'],
+    },
+  },
+  {
+    name: 'update_template',
+    description: 'Update parts of an existing page template (name, description, category, default, body)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Template ID' },
+        name: { type: 'string' },
+        description: { type: 'string' },
+        category: { type: 'string', description: 'Category ID, or empty string to make it general purpose' },
+        default: { type: 'boolean' },
+        body: { type: 'string', description: 'New markdown body' },
+      },
+      required: ['id'],
+    },
+  },
+  {
+    name: 'delete_template',
+    description: 'Delete a page template',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Template ID' },
+      },
+      required: ['id'],
+    },
+  },
 ];
 
 // ==================== MCP HANDLERS ====================
@@ -214,13 +292,18 @@ async function handleToolCall(name: string, args: any): Promise<any> {
     }
 
     case 'create_page': {
-      const { category, slug, title, content } = args;
+      const { category, slug, title, template } = args;
       if (!ID_PATTERN.test(slug)) {
         return { content: [{ type: 'text', text: `❌ Invalid slug: must be ${ID_RULE}` }], isError: true };
       }
       if (!db.getCategory(category)) {
         return { content: [{ type: 'text', text: `❌ Category "${category}" does not exist. Use list_categories or create_category first.` }], isError: true };
       }
+      const resolved = resolvePageContent({ content: args.content, template, category, title });
+      if ('error' in resolved) {
+        return { content: [{ type: 'text', text: `❌ ${resolved.error}` }], isError: true };
+      }
+      const content = resolved.content;
       // Create in DB
       const page = db.createPage(category, slug, title, content);
       // Write to file
@@ -372,6 +455,44 @@ async function handleToolCall(name: string, args: any): Promise<any> {
       };
     }
 
+    case 'list_templates': {
+      const list = templates.listTemplates();
+      return { content: [{ type: 'text', text: JSON.stringify(list, null, 2) }] };
+    }
+
+    case 'get_template': {
+      const template = templates.getTemplate(args.id);
+      if (!template) {
+        return { content: [{ type: 'text', text: `❌ Template "${args.id}" not found` }], isError: true };
+      }
+      return { content: [{ type: 'text', text: JSON.stringify(template, null, 2) }] };
+    }
+
+    case 'create_template': {
+      const { id, name: templateName, body, description, category, default: isDefault } = args;
+      const template = templates.createTemplate(id, { name: templateName, description, category, default: isDefault }, body);
+      return {
+        content: [{
+          type: 'text',
+          text: `✅ Template created: ${id}\n📄 File: content/_templates/${id}.md\n\n${JSON.stringify(template, null, 2)}`,
+        }],
+      };
+    }
+
+    case 'update_template': {
+      const { id, ...changes } = args;
+      const template = templates.updateTemplate(id, changes);
+      return { content: [{ type: 'text', text: `✅ Template updated: ${id}\n\n${JSON.stringify(template, null, 2)}` }] };
+    }
+
+    case 'delete_template': {
+      const deleted = templates.deleteTemplate(args.id);
+      if (!deleted) {
+        return { content: [{ type: 'text', text: `❌ Template "${args.id}" not found` }], isError: true };
+      }
+      return { content: [{ type: 'text', text: `✅ Template deleted: ${args.id}` }] };
+    }
+
     default:
       return { content: [{ type: 'text', text: `❌ Unknown tool: ${name}` }], isError: true };
   }
@@ -497,6 +618,55 @@ function createHttpServer() {
     }
   });
 
+  // ---- Templates (content/_templates/*.md) ----
+
+  const templateStatus = (error: unknown) => (error instanceof templates.TemplateError ? error.status : 500);
+
+  app.get('/api/templates', (req, res) => {
+    res.json(templates.listTemplates());
+  });
+
+  app.get('/api/templates/:id', (req, res) => {
+    try {
+      const template = templates.getTemplate(req.params.id);
+      if (!template) return res.status(404).json({ error: 'Template not found' });
+      res.json(template);
+    } catch (error) {
+      res.status(templateStatus(error)).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.post('/api/templates', (req, res) => {
+    try {
+      const { id, name, body, description, category, default: isDefault } = req.body;
+      if (!id || !name || typeof body !== 'string') {
+        return res.status(400).json({ error: 'Missing required fields: id, name, body' });
+      }
+      const template = templates.createTemplate(id, { name, description, category, default: isDefault }, body);
+      res.status(201).json(template);
+    } catch (error) {
+      res.status(templateStatus(error)).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.put('/api/templates/:id', (req, res) => {
+    try {
+      const { name, body, description, category, default: isDefault } = req.body;
+      const template = templates.updateTemplate(req.params.id, { name, body, description, category, default: isDefault });
+      res.json(template);
+    } catch (error) {
+      res.status(templateStatus(error)).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete('/api/templates/:id', (req, res) => {
+    try {
+      res.json({ deleted: templates.deleteTemplate(req.params.id) });
+    } catch (error) {
+      res.status(templateStatus(error)).json({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
   // List pages
   app.get('/api/pages', (req, res) => {
     const category = req.query.category as string | undefined;
@@ -516,9 +686,9 @@ function createHttpServer() {
   // Create a page
   app.post('/api/pages', wrap(async (req, res) => {
     try {
-      const { category, slug, title, content } = req.body;
-      if (!category || !slug || !title || !content) {
-        return res.status(400).json({ error: 'Missing required fields: category, slug, title, content' });
+      const { category, slug, title, template } = req.body;
+      if (!category || !slug || !title) {
+        return res.status(400).json({ error: 'Missing required fields: category, slug, title (and content or template)' });
       }
       if (!ID_PATTERN.test(slug)) {
         return res.status(400).json({ error: `Slug must be ${ID_RULE}` });
@@ -526,6 +696,11 @@ function createHttpServer() {
       if (!db.getCategory(category)) {
         return res.status(404).json({ error: `Category "${category}" does not exist` });
       }
+      const resolved = resolvePageContent({ content: req.body.content, template, category, title });
+      if ('error' in resolved) {
+        return res.status(400).json({ error: resolved.error });
+      }
+      const content = resolved.content;
       const page = db.createPage(category, slug, title, content, 'user');
       files.writePageFile(category, slug, title, content, page.id, 'user');
       await search.indexPage({

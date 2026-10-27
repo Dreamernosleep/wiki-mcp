@@ -1,4 +1,4 @@
-import { Code2, Eye, Pencil, Save, Trash2 } from 'lucide-react';
+import { Code2, Eye, LayoutTemplate, Pencil, Save, Trash2 } from 'lucide-react';
 
 import type { Page } from '@/lib/api';
 import {
@@ -36,9 +36,10 @@ interface Props {
   saving: boolean;
   onSave: () => void;
   onDelete: () => void;
+  onSaveAsTemplate: () => void;
 }
 
-export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, onDelete }: Props) {
+export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, onDelete, onSaveAsTemplate }: Props) {
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-3">
       <SidebarTrigger className="-ml-1 md:hidden" />
@@ -103,6 +104,22 @@ export function PageHeader({ page, mode, onModeChange, dirty, saving, onSave, on
               </Button>
             </TooltipTrigger>
             <TooltipContent>Ctrl+S</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 gap-1.5 px-2.5 text-xs"
+                onClick={onSaveAsTemplate}
+                aria-label="Save as template"
+              >
+                <LayoutTemplate className="size-3.5" />
+                <span className="hidden lg:inline">Template</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Save this page as a template</TooltipContent>
           </Tooltip>
 
           <AlertDialog>
