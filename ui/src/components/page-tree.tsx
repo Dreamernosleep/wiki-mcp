@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ChevronRight, FileText, LayoutTemplate, Plus } from 'lucide-react';
+import { ChevronRight, FileText, LayoutTemplate, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import type { Category, Page, Template } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,12 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Props {
   categories: Category[];
@@ -25,6 +31,8 @@ interface Props {
   /** Opens the New page dialog with this category preselected */
   onNewPage: (category: string) => void;
   onNewTemplate: () => void;
+  onRenameCategory: (category: Category) => void;
+  onDeleteCategory: (category: Category) => void;
 }
 
 const TEMPLATES_KEY = '_templates';
@@ -39,6 +47,8 @@ export function PageTree({
   onOpenTemplate,
   onNewPage,
   onNewTemplate,
+  onRenameCategory,
+  onDeleteCategory,
 }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
@@ -77,7 +87,16 @@ export function PageTree({
             count={catPages.length}
             open={!collapsed.has(cat.id)}
             onToggle={() => toggle(cat.id)}
-            action={<AddButton label={`New page in ${cat.name}`} onClick={() => onNewPage(cat.id)} />}
+            action={
+              <>
+                <AddButton label={`New page in ${cat.name}`} onClick={() => onNewPage(cat.id)} />
+                <CategoryMenu
+                  name={cat.name}
+                  onRename={() => onRenameCategory(cat)}
+                  onDelete={() => onDeleteCategory(cat)}
+                />
+              </>
+            }
           >
             {catPages.length === 0 ? (
               <Empty>No pages</Empty>
@@ -208,6 +227,34 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
       </TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>
+  );
+}
+
+/** The "…" menu at the right of a category header: rename or delete the folder */
+function CategoryMenu({ name, onRename, onDelete }: { name: string; onRename: () => void; onDelete: () => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          aria-label={`Options for ${name}`}
+          className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-sidebar-accent hover:text-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-foreground"
+        >
+          <MoreHorizontal className="size-3.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-40">
+        <DropdownMenuItem onSelect={onRename}>
+          <Pencil />
+          Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+          <Trash2 />
+          Delete folder…
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

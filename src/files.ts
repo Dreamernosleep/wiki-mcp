@@ -55,6 +55,24 @@ export function ensureCategoryDir(category: string): void {
 }
 
 /**
+ * Remove a category folder and everything in it. Refuses reserved folders
+ * (`_templates`) and anything outside the content directory.
+ */
+export function deleteCategoryDir(category: string): boolean {
+  if (!ID_PATTERN.test(category) || isReservedDir(category)) {
+    throw new Error(`Invalid category folder: ${category}`);
+  }
+  const dir = path.resolve(CONTENT_DIR, category);
+  const root = path.resolve(CONTENT_DIR) + path.sep;
+  if (!dir.startsWith(root)) {
+    throw new Error(`Invalid category folder: ${category}`);
+  }
+  if (!fs.existsSync(dir)) return false;
+  fs.rmSync(dir, { recursive: true, force: true });
+  return true;
+}
+
+/**
  * Write a page to a markdown file with frontmatter
  */
 export function writePageFile(

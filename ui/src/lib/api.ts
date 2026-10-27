@@ -84,6 +84,14 @@ export const api = {
   listCategories: () => request<Category[]>('/categories'),
   createCategory: (body: { id: string; name: string; description?: string }) =>
     request<Category>('/categories', { method: 'POST', body: JSON.stringify(body) }),
+  /** Rename: display name and/or description. The id (folder) never changes */
+  updateCategory: (id: string, body: { name?: string; description?: string }) =>
+    request<Category>(`/categories/${enc(id)}`, { method: 'PUT', body: JSON.stringify(body) }),
+  /** With force, every page in the category is deleted too */
+  deleteCategory: (id: string, force = false) =>
+    request<{ deleted: boolean; pagesRemoved: number }>(`/categories/${enc(id)}${force ? '?force=true' : ''}`, {
+      method: 'DELETE',
+    }),
 
   // Pages
   listPages: (category?: string) =>

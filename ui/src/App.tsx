@@ -20,6 +20,7 @@ import { LinkedPages } from '@/components/linked-pages';
 import { Welcome } from '@/components/welcome';
 import { NewPageDialog } from '@/components/new-page-dialog';
 import { NewCategoryDialog } from '@/components/new-category-dialog';
+import { DeleteCategoryDialog, RenameCategoryDialog } from '@/components/category-dialogs';
 import { SaveTemplateDialog } from '@/components/save-template-dialog';
 
 export default function App() {
@@ -36,6 +37,8 @@ export default function App() {
   const [newPage, setNewPage] = useState<{ open: boolean; category?: string }>({ open: false });
   const openNewPage = useCallback((category?: string) => setNewPage({ open: true, category }), []);
   const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  // Rename / delete a category from its sidebar menu
+  const [categoryAction, setCategoryAction] = useState<{ kind: 'rename' | 'delete'; category: Category } | null>(null);
   // Save-as-template (from the open page) or new template (from the sidebar)
   const [templateDialog, setTemplateDialog] = useState<'closed' | 'from-page' | 'new'>('closed');
   const [saving, setSaving] = useState(false);
@@ -195,6 +198,25 @@ export default function App() {
     [loadCategories, loadPages]
   );
 
+  const renameCategory = useCallback(
+    async (id: string, input: { name: string; description: string }) => {
+      await api.updateCategory(id, input);
+      toast.success(`Category renamed to "${input.name}"`);
+      await Promise.all([loadCategories(), loadPages()]);
+    },
+    [loadCategories, loadPages]
+  );
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      const { pagesRemoved } = await api.deleteCategory(id, true);
+      toast.success(pagesRemoved === 0 ? 'Category deleted' : `Category and ${pagesRemoved} page${pagesRemoved === 1 ? '' : 's'} deleted`);
+      if (currentPage?.category_id === id) closeDocument();
+      await Promise.all([loadCategories(), loadPages()]);
+    },
+    [currentPage, closeDocument, loadCategories, loadPages]
+  );
+
   // ---- Keyboard shortcuts -------------------------------------------------
 
   useEffect(() => {
@@ -236,6 +258,8 @@ export default function App() {
         onNewPage={openNewPage}
         onNewCategory={() => setNewCategoryOpen(true)}
         onNewTemplate={() => setTemplateDialog('new')}
+        onRenameCategory={(category) => setCategoryAction({ kind: 'rename', category })}
+        onDeleteCategory={(category) => setCategoryAction({ kind: 'delete', category })}
       />
 
       <SidebarInset className="h-svh overflow-hidden">
@@ -294,6 +318,19 @@ export default function App() {
         onCreate={createPage}
       />
       <NewCategoryDialog open={newCategoryOpen} onOpenChange={setNewCategoryOpen} onCreate={createCategory} />
+      <RenameCategoryDialog
+        open={categoryAction?.kind === 'rename'}
+        onOpenChange={(open) => !open && setCategoryAction(null)}
+        category={categoryAction?.category ?? null}
+        onSave={renameCategory}
+      />
+      <DeleteCategoryDialog
+        open={categoryAction?.kind === 'delete'}
+        onOpenChange={(open) => !open && setCategoryAction(null)}
+        category={categoryAction?.category ?? null}
+        pageCount={categoryAction ? pages.filter((p) => p.category_id === categoryAction.category.id).length : 0}
+        onConfirm={deleteCategory}
+      />
       <SaveTemplateDialog
         open={templateDialog !== 'closed'}
         onOpenChange={(open) => !open && setTemplateDialog('closed')}

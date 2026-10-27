@@ -31,6 +31,8 @@ interface Props {
   onNewPage: (category?: string) => void;
   onNewCategory: () => void;
   onNewTemplate: () => void;
+  onRenameCategory: (category: Category) => void;
+  onDeleteCategory: (category: Category) => void;
 }
 
 export function AppSidebar({
@@ -44,6 +46,8 @@ export function AppSidebar({
   onNewPage,
   onNewCategory,
   onNewTemplate,
+  onRenameCategory,
+  onDeleteCategory,
 }: Props) {
   const [search, setSearch] = useState<{ results: SearchResult[]; engine: SearchEngine } | null>(null);
 
@@ -98,6 +102,8 @@ export function AppSidebar({
               onOpenTemplate(id);
             }}
             onNewPage={onNewPage}
+            onRenameCategory={onRenameCategory}
+            onDeleteCategory={onDeleteCategory}
             onNewTemplate={onNewTemplate}
           />
         )}
