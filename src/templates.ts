@@ -223,9 +223,9 @@ Why this procedure exists and when to use it.
 - Related pages:
 
 ## Steps
-1.
-2.
-3.
+1. First step
+2. Second step
+3. Third step
 
 ## Done when
 What the result looks like when the procedure is complete.
@@ -243,15 +243,16 @@ What the result looks like when the procedure is complete.
 - Attendees:
 
 ## Agenda
--
+- First topic
+- Second topic
 
 ## Notes
 
 ## Decisions
--
+- Decision taken
 
 ## Action items
-- [ ]
+- [ ] Task — owner, due date
 `,
   },
   {
@@ -269,8 +270,8 @@ What the result looks like when the procedure is complete.
 What situation led to this decision.
 
 ## Options considered
-1.
-2.
+1. First option
+2. Second option
 
 ## Decision
 What was decided and why.
