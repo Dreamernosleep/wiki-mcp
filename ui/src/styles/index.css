@@ -1,0 +1,144 @@
+@import "tailwindcss";
+@import "./brand.css";
+@import "highlight.js/styles/github.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Map brand tokens (brand.css) to Tailwind utility colours. Do not put
+   colour values here — edit brand.css instead. */
+@theme inline {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-link: var(--link);
+  --color-mark: var(--mark);
+  --color-code-bg: var(--code-bg);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground text-[13px] antialiased;
+    font-family: var(--font-sans);
+  }
+  mark {
+    @apply bg-mark text-foreground rounded-sm px-0.5;
+  }
+}
+
+/* ---- Markdown preview ----------------------------------------------------- */
+.markdown-body {
+  @apply text-sm leading-6;
+}
+.markdown-body > *:first-child {
+  margin-top: 0;
+}
+.markdown-body h1 {
+  @apply text-2xl font-semibold tracking-tight mt-8 mb-3 pb-2 border-b;
+}
+.markdown-body h2 {
+  @apply text-lg font-semibold tracking-tight mt-7 mb-2;
+}
+.markdown-body h3 {
+  @apply text-base font-semibold mt-5 mb-2;
+}
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  @apply text-sm font-semibold mt-4 mb-1;
+}
+.markdown-body p {
+  @apply my-3;
+}
+.markdown-body a {
+  @apply text-link underline underline-offset-2 decoration-muted-foreground/60 hover:decoration-foreground;
+}
+.markdown-body ul,
+.markdown-body ol {
+  @apply my-3 pl-6;
+}
+.markdown-body ul {
+  @apply list-disc;
+}
+.markdown-body ol {
+  @apply list-decimal;
+}
+.markdown-body li {
+  @apply my-1;
+}
+.markdown-body blockquote {
+  @apply my-3 border-l-2 pl-4 text-muted-foreground;
+}
+.markdown-body code {
+  @apply bg-code-bg rounded-sm px-1 py-0.5 text-[12px];
+  font-family: var(--font-mono);
+}
+.markdown-body pre {
+  @apply bg-code-bg border rounded-md p-3 my-3 overflow-x-auto text-[12px] leading-5;
+}
+.markdown-body pre code {
+  @apply bg-transparent p-0;
+}
+.markdown-body table {
+  @apply my-3 w-full border-collapse text-sm;
+}
+.markdown-body th,
+.markdown-body td {
+  @apply border px-3 py-1.5 text-left align-top;
+}
+.markdown-body th {
+  @apply bg-muted font-medium;
+}
+.markdown-body hr {
+  @apply my-6 border-t;
+}
+.markdown-body img {
+  @apply max-w-full rounded-md border;
+}
+
+/* highlight.js colours in dark mode: keep code readable on dark surfaces */
+.dark .hljs {
+  color: #e5e5e5;
+  background: transparent;
+}

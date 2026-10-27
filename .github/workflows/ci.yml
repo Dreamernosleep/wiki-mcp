@@ -36,6 +36,14 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit
 
+      - name: Install UI dependencies
+        working-directory: ui
+        run: npm ci
+
+      - name: Build UI
+        working-directory: ui
+        run: npm run build
+
   docker:
     name: Docker Build
     runs-on: ubuntu-latest

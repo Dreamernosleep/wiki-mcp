@@ -18,7 +18,7 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 | 📁 **Markdown Files** | Your wiki is just `.md` files with YAML frontmatter — edit in any editor! |
 | 🤖 **MCP Server** | AI agents (Claude, pi, Cursor, etc.) can read, write, and search your wiki |
 | 🔍 **Smart Search** | Typo-tolerant search with [Meilisearch](https://www.meilisearch.com/) (fallback: SQLite FTS5) |
-| 🌐 **Web UI** | Beautiful dark-themed editor with live preview, split view, and autocomplete |
+| 🌐 **Web UI** | Clean black-and-white editor built with React + [shadcn/ui](https://ui.shadcn.com) — live preview, split view, autocomplete, light/dark |
 | 🔗 **Wiki Links** | `[[page-slug]]` or `[[category/page-slug]]` with autocomplete while typing |
 | 📂 **Dynamic Categories** | Create custom folders (categories) on the fly — not just finance/ops/service |
 | 🐳 **Docker Ready** | One command to run everything: `docker-compose up -d` |
@@ -76,8 +76,11 @@ npm install
 # Start Meilisearch
 docker run -d -p 7700:7700 getmeili/meilisearch
 
-# Run in development mode
+# Run the API in development mode (http://localhost:3000)
 npm run dev
+
+# In a second terminal, run the web UI (http://localhost:5173, proxies /api to :3000)
+cd ui && npm install && npm run dev
 ```
 
 ### Option 3: MCP Only (for AI agents)
@@ -168,11 +171,17 @@ wiki-mcp/
 │   ├── search.ts           # Meilisearch client
 │   ├── watcher.ts          # File watcher (auto-sync)
 │   └── sync.ts             # Manual sync script
-├── ui/                     # Web UI (static files)
-│   ├── index.html
-│   ├── app.js              # Full editor logic
-│   ├── style.css           # Dark theme
-│   └── marked.min.js       # Bundled libraries
+├── ui/                     # Web UI (Vite + React + shadcn/ui)
+│   ├── src/
+│   │   ├── App.tsx         # App state and layout
+│   │   ├── components/     # Sidebar, editor, preview, dialogs (+ ui/ from shadcn)
+│   │   ├── lib/            # API client, markdown rendering
+│   │   └── styles/
+│   │       ├── brand.css   # ★ All colours, radius, fonts — edit to re-theme
+│   │       └── index.css   # Tailwind + token mapping
+│   ├── BRANDING.md         # How to change colours / name
+│   ├── Dockerfile          # Builds the bundle, serves it with nginx
+│   └── nginx.conf.template # Serves the app and proxies /api to the API
 ├── content/                # Your wiki (markdown files)
 │   ├── finance/
 │   ├── operations/
@@ -216,6 +225,13 @@ See [[operations/procurement]] for details.
 Or use full path: [[finance/expense-policy]]
 ```
 
+## 🎨 Theming the Web UI
+
+The UI ships black-and-white with a light/dark toggle. Every colour, the corner radius and the fonts
+live in **one file**: [`ui/src/styles/brand.css`](ui/src/styles/brand.css). Change `--primary` there
+and every button, active row, focus ring and link follows. See [`ui/BRANDING.md`](ui/BRANDING.md)
+for a walkthrough, including how to set a brand colour instead of black.
+
 ## 🧪 Development
 
 ```bash
@@ -252,9 +268,10 @@ This project is licensed under the [MIT License](LICENSE) — see the LICENSE fi
 
 - [Model Context Protocol](https://modelcontextprotocol.io/) — AI agent integration
 - [Meilisearch](https://www.meilisearch.com/) — Smart search engine
+- [shadcn/ui](https://ui.shadcn.com/) + [Tailwind CSS](https://tailwindcss.com/) — Web UI components
 - [Marked.js](https://marked.js.org/) — Markdown rendering
 - [Chokidar](https://github.com/paulmillr/chokidar) — File watching
-- [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) / [node:sqlite](https://nodejs.org/api/sqlite.html) — Database
+- [node:sqlite](https://nodejs.org/api/sqlite.html) — Database
 
 ---
 

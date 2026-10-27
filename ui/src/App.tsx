@@ -1,0 +1,191 @@
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
+import { toast } from 'sonner';
+
+import { api, type Category, type LinkedPages as LinkedPagesData, type Page } from '@/lib/api';
+import { extractTitle, stripFrontmatter } from '@/lib/markdown';
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
+import { PageHeader, type ViewMode } from '@/components/page-header';
+import { Editor } from '@/components/editor';
+import { Preview } from '@/components/preview';
+import { LinkedPages } from '@/components/linked-pages';
+import { Welcome } from '@/components/welcome';
+import { NewPageDialog } from '@/components/new-page-dialog';
+import { NewCategoryDialog } from '@/components/new-category-dialog';
+
+export default function App() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [pages, setPages] = useState<Page[]>([]);
+  const [currentPage, setCurrentPage] = useState<Page | null>(null);
+  const [editorText, setEditorText] = useState('');
+  const [mode, setMode] = useState<ViewMode>('preview');
+  const [links, setLinks] = useState<LinkedPagesData | null>(null);
+  const [newPageOpen, setNewPageOpen] = useState(false);
+  const [newCategoryOpen, setNewCategoryOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  // ---- Data loading -------------------------------------------------------
+
+  const loadCategories = useCallback(async () => setCategories(await api.listCategories()), []);
+  const loadPages = useCallback(async () => setPages(await api.listPages()), []);
+
+  useEffect(() => {
+    Promise.all([loadCategories(), loadPages()]).catch((e) => toast.error(errorMessage(e)));
+  }, [loadCategories, loadPages]);
+
+  const loadLinks = useCallback(async (page: Page) => {
+    try {
+      setLinks(await api.getLinks(page.category_id, page.slug));
+    } catch (e) {
+      console.error('Failed to load links:', e);
+      setLinks(null);
+    }
+  }, []);
+
+  // ---- Page actions -------------------------------------------------------
+
+  const openPage = useCallback(
+    async (category: string, slug: string) => {
+      try {
+        const page = await api.getPage(category, slug);
+        setCurrentPage(page);
+        setEditorText(page.raw_markdown || page.content);
+        setMode('preview');
+        void loadLinks(page);
+      } catch (e) {
+        toast.error(errorMessage(e));
+      }
+    },
+    [loadLinks]
+  );
+
+  const closePage = useCallback(() => {
+    setCurrentPage(null);
+    setEditorText('');
+    setLinks(null);
+  }, []);
+
+  const savePage = useCallback(async () => {
+    if (!currentPage || saving) return;
+    setSaving(true);
+    try {
+      const title = extractTitle(editorText, currentPage.title);
+      // The editor shows the raw file including frontmatter; the server owns
+      // the frontmatter, so only the body is sent as content.
+      const updated = await api.updatePage(currentPage.category_id, currentPage.slug, {
+        title,
+        content: stripFrontmatter(editorText),
+      });
+      toast.success('Page saved');
+      setCurrentPage({ ...currentPage, ...updated, title, raw_markdown: editorText });
+      await loadPages();
+      void loadLinks(updated);
+    } catch (e) {
+      toast.error(errorMessage(e));
+    } finally {
+      setSaving(false);
+    }
+  }, [currentPage, editorText, saving, loadPages, loadLinks]);
+
+  const deletePage = useCallback(async () => {
+    if (!currentPage) return;
+    try {
+      await api.deletePage(currentPage.category_id, currentPage.slug);
+      toast.success('Page deleted');
+      closePage();
+      await loadPages();
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }, [currentPage, closePage, loadPages]);
+
+  const createPage = useCallback(
+    async (input: { category: string; slug: string; title: string; content: string }) => {
+      await api.createPage(input);
+      toast.success('Page created');
+      await loadPages();
+      await openPage(input.category, input.slug);
+    },
+    [loadPages, openPage]
+  );
+
+  const createCategory = useCallback(
+    async (input: { id: string; name: string; description: string }) => {
+      await api.createCategory(input);
+      toast.success(`Category "${input.name}" created`);
+      await Promise.all([loadCategories(), loadPages()]);
+    },
+    [loadCategories, loadPages]
+  );
+
+  // ---- Keyboard shortcuts -------------------------------------------------
+
+  useEffect(() => {
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (currentPage) void savePage();
+      } else if (mod && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        setNewPageOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [currentPage, savePage]);
+
+  // ---- Render -------------------------------------------------------------
+
+  const dirty = currentPage !== null && editorText !== (currentPage.raw_markdown || currentPage.content);
+
+  return (
+    <SidebarProvider style={{ '--sidebar-width': '17rem' } as CSSProperties}>
+      <AppSidebar
+        categories={categories}
+        pages={pages}
+        currentPage={currentPage}
+        onOpenPage={openPage}
+        onNewPage={() => setNewPageOpen(true)}
+        onNewCategory={() => setNewCategoryOpen(true)}
+      />
+
+      <SidebarInset className="h-svh overflow-hidden">
+        <PageHeader
+          page={currentPage}
+          mode={mode}
+          onModeChange={setMode}
+          dirty={dirty}
+          saving={saving}
+          onSave={savePage}
+          onDelete={deletePage}
+        />
+
+        {currentPage ? (
+          <>
+            <div className="flex min-h-0 flex-1">
+              {(mode === 'edit' || mode === 'split') && (
+                <div className={mode === 'split' ? 'flex min-w-0 flex-1 border-r' : 'flex min-w-0 flex-1'}>
+                  <Editor value={editorText} onChange={setEditorText} pages={pages} />
+                </div>
+              )}
+              {(mode === 'preview' || mode === 'split') && (
+                <div className="flex min-w-0 flex-1">
+                  <Preview markdown={editorText} onOpenPage={openPage} />
+                </div>
+              )}
+            </div>
+            <LinkedPages links={links} onOpenPage={openPage} />
+          </>
+        ) : (
+          <Welcome onNewPage={() => setNewPageOpen(true)} />
+        )}
+      </SidebarInset>
+
+      <NewPageDialog open={newPageOpen} onOpenChange={setNewPageOpen} categories={categories} onCreate={createPage} />
+      <NewCategoryDialog open={newCategoryOpen} onOpenChange={setNewCategoryOpen} onCreate={createCategory} />
+    </SidebarProvider>
+  );
+}
