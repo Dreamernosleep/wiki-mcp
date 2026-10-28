@@ -49,18 +49,23 @@ Wiki MCP is a self-hosted knowledge base that combines the simplicity of **Markd
 
 ## 🚀 Quick Start
 
-### Option 1: Guided setup (Recommended)
+### Option 1: One-line install (Recommended)
+
+The only prerequisite is [Docker](https://docs.docker.com/get-docker/). No Node, no git.
 
 ```bash
-git clone https://github.com/Dreamernosleep/wiki-mcp.git
-cd wiki-mcp
-npm run setup
+curl -fsSL https://raw.githubusercontent.com/Dreamernosleep/wiki-mcp/main/setup.sh | bash
 ```
 
-The setup script checks for Node 22+ and Docker, creates your `.env`, generates a search-engine
-password, asks for the ports (defaults: UI on 80, API on 3000), starts everything with Docker
-Compose, and prints the URLs plus an MCP config block to paste into your AI tool. Re-running it is
-safe: existing `.env` values are kept. Use `npm run setup -- --yes` for a non-interactive install.
+This downloads the project into `./wiki-mcp`, creates your `.env`, generates a search-engine
+password, starts everything with Docker Compose, and prints the URLs plus an MCP config block to
+paste into your AI tool. Piped into `bash` it uses the defaults (UI on 80, API on 3000); to be
+asked for the ports instead, run `bash <(curl -fsSL https://raw.githubusercontent.com/Dreamernosleep/wiki-mcp/main/setup.sh)`.
+
+Already have a clone? Run `./setup.sh` from the repository root (`./setup.sh --yes` for no
+prompts, `--no-start` to configure only). Re-running it is safe: existing `.env` values are kept.
+
+> **Windows:** run the installer inside WSL or Git Bash (Docker Desktop for Windows installs WSL).
 
 ### Option 1b: Plain Docker Compose
 

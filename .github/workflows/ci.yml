@@ -53,6 +53,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Lint installer
+        run: shellcheck setup.sh
+
+      - name: Run installer (configure only)
+        run: |
+          ./setup.sh --yes --no-start
+          test -f .env || { echo ".env was not created"; exit 1; }
+          grep -Eq '^MEILISEARCH_KEY=[0-9a-f]{64}$' .env || { echo "MEILISEARCH_KEY was not generated"; cat .env; exit 1; }
+          grep -q '^API_PORT=3000$' .env && grep -q '^UI_PORT=80$' .env || { echo "default ports not written"; exit 1; }
+          # Second run must keep the generated key
+          cp .env .env.first && ./setup.sh --yes --no-start && cmp .env .env.first
+
       - name: Build Docker images
         run: docker compose build
 

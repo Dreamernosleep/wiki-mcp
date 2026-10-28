@@ -13,3 +13,4 @@ data
 *.log
 npm-debug.log
 .DS_Store
+setup.sh

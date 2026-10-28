@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Installer rewritten as `setup.sh` (bash). Docker is now the only prerequisite: no Node, no git. Run it from a clone (`./setup.sh`, `npm run setup` still works) or as a one-liner that downloads the project first: `curl -fsSL https://raw.githubusercontent.com/Dreamernosleep/wiki-mcp/main/setup.sh | bash`. `scripts/setup.mjs` is removed.
+
 ### Added
 - Initial open source release
 - MCP server with 18 tools
